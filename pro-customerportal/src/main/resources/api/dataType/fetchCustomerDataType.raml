@@ -1,0 +1,37 @@
+#%RAML 1.0 DataType
+type: object
+properties:
+      customerId:
+        type: string
+        required: true
+        minLength: 7
+      emailId:
+        type: string
+        required: true
+        minLength: 7
+      firstName:
+        type: string
+        required: true
+        minLength: 3
+      lastName:
+        type: string
+        required: true
+        minLength: 3
+      gender:
+        type: string
+        required: true
+      pincode:
+        type: string
+        required: true     
+      address:
+        type: string
+        required: true
+      phoneNumber:
+        type: string
+        required: true
+      location:
+        required: true
+        enum: [Kolkata, Bangalore, Hyderabad,Mumbai]
+      savedCards:
+        type: object
+        required: true

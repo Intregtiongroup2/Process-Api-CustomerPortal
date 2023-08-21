@@ -1,0 +1,21 @@
+{
+  "customerId": "KOL_1000",
+  "emailId": "pratik@gmail.com",
+  "firstName": "Pratik",
+  "lastName": "Biswas",
+  "gender": "Male",
+  "pincode": "700004",
+  "address": "Lalit Mitra Lane",
+  "phoneNumber": "7980839906",
+  "location": "Kolkata",
+  "savedCards": {
+    "1": {
+      "bankName": "PNB",
+      "cardNumber": "1111222233334444"
+    },
+    "2": {
+      "bankName": "ICICI",
+      "cardNumber": "5555666677778888"
+    }
+  }
+}

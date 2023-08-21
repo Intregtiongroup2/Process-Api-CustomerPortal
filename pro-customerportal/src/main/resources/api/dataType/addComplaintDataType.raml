@@ -1,0 +1,23 @@
+#%RAML 1.0 DataType
+
+type: object
+properties:
+      orderId:
+        type: string
+        required: true
+      productTitle:
+        type: string
+        required: true
+      quantity:
+        type: number
+        required: true 
+      customerId:
+         type: string
+         required: true
+      complaint_category:
+        required: true
+        enum: [Wrong_Items, Delivery_Delay, Damaged_Items]
+      description:
+        type: string
+        required: true
+        maxLength: 255

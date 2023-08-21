@@ -1,0 +1,195 @@
+#%RAML 1.0
+
+title: pro-customerPortal
+version: v1.0.0
+protocols:
+  - HTTPS
+
+mediaType: 
+- application/json
+
+description: Process API for getting product details and cart details, processing payments, complaints and feedback. It also enables user to modify the customer database and fetch details from it.
+
+uses:
+  customerPortalResourceType: library/CustomerPortalResourceType.raml
+
+traits:
+  client-id-enforcement: !include traits/client-id-enforcement.raml
+  CustomerIdQuery: !include traits/customerQueryParams.raml
+  productTitleQueryParam: !include traits/productTitleQueryParameters.raml
+  productDetailsQueryParam: !include traits/productDetailsTrait.raml
+  cartQueryParam: !include traits/cartQueryParam.raml
+  trackComplaintQueryParam: !include traits/trackComplaintQueryParam.raml
+  closeComplaintQueryParam: !include traits/closeComplaintQueryParam.raml
+  orderStatusQueryParam: !include traits/orderStatusQueryParam.raml
+  productQuantityQueryParam: !include traits/productQuantityQuery.raml
+
+/productDetails:
+  description: Use to fetche  product details
+  is: [client-id-enforcement,productDetailsQueryParam]
+  get: 
+    description: It is uesed to fetche all or specific product details
+  type:
+    customerPortalResourceType.request-type:
+      getResponseType: !include dataType/productDataType.raml
+      getResponseExample: !include example/productDetailsResponseExample.json
+
+/pro-addToCart:
+    description: Used to add new Items in cart
+    is: [client-id-enforcement]
+    post:
+    type:
+      customerPortalResourceType.request-type:
+        methodDescription: Used to find product price, availability and add the available products in carts
+        postType: !include dataType/addToCartDataType.raml
+        postExample: !include example/addToCartExample.json
+        postResponseType: !include dataType/addToCartResponseDataType.raml
+        postResponseExample: !include example/addToCartResponse.json
+
+/pro-cartDetails:
+  description: Used to get cart details of specific customer
+  is: [client-id-enforcement]
+  get:
+    description: Used to Fetch Items present in the cart of specific customer
+    is: [cartQueryParam]
+  type:
+      customerPortalResourceType.request-type:
+        getResponseType: !include dataType/cartDetailsDataType.raml
+        getResponseExample: !include example/cartDetailsExample.json
+
+/pro-modifyCart:
+  description: Used to Modify items in cart
+  is: [client-id-enforcement]
+  put:
+    description: Used to add or remove product quantity from carts
+  type:
+    customerPortalResourceType.request-type:
+      putType: !include dataType/modifyCartDataType.raml
+      putRequestExample: !include example/modifyCartRequestExample.json 
+      putResponse: !include example/modifyCartResponseExample.json
+
+/pro-payment:
+    description: Used to confirm the payment and modify the product database
+    is: [client-id-enforcement]
+    post:
+    type:
+      customerPortalResourceType.request-type:
+        methodDescription: Used to confirm the payment and modify the database
+        postType: !include dataType/paymentDataType.raml
+        postExample: !include example/paymentRequestExample.json
+        postResponseType: !include dataType/paymentResponseDataType.raml
+        postResponseExample: !include example/paymentResponseExample.json
+
+
+/pro-feedback:
+    description: Used to add feedback about a specific product
+    is: [client-id-enforcement]
+    post:
+    type:
+      customerPortalResourceType.request-type:
+        methodDescription: Used to add feedback about a specific product
+        postType: !include dataType/feedbackDataType.raml
+        postExample: !include example/feedbackRequestExample.json
+        postResponseType: object
+        postResponseExample: !include example/feedbackResponseExample.json
+
+/fetchCustomerDetails:
+  description: Used to fetch customer Details
+  is: [client-id-enforcement]
+  get:
+    is: [CustomerIdQuery]
+  type:
+      customerPortalResourceType.request-type:
+        methodDescription: used to fetch customer details
+        getResponseExample: !include example/fetchCustomerExample.json  
+        getResponseType: !include dataType/fetchCustomerDataType.raml
+        
+/modifyCustomerDetails:
+  description: Used to Update customer Details
+  is: [client-id-enforcement]
+  put:
+    is: [CustomerIdQuery]
+  type:
+      customerPortalResourceType.request-type:
+        methodDescription: used to fetch customer details
+        putType: !include dataType/customerPutDataType.raml
+        putResponse: !include example/modifyCustomerPutResponseExample.json
+        putRequestExample: !include example/modifyCustomerPutRequestExample.json
+        
+/pro-orderDelivered:
+  is: [client-id-enforcement]
+  put:
+    description: used to update status of Order to delivered
+    is: [orderStatusQueryParam]
+  type:
+      customerPortalResourceType.orderStatus-type:
+        putResponse: !include example/orderDeliveredResponse.json
+
+/pro-orderCancelled:
+  is: [client-id-enforcement]
+  put:
+    description: used to update status of Order to cancelled
+    is: [orderStatusQueryParam]
+  type:
+      customerPortalResourceType.orderStatus-type:
+        putResponse: !include example/orderCancelledResponse.json
+
+/pro-addComplaint:
+
+  description: Used to add complaint
+  is: [client-id-enforcement]
+  post:
+  type:
+    customerPortalResourceType.request-type:
+        methodDescription: Used to add complaint
+        postType: !include dataType/addComplaintDataType.raml
+        postExample: !include example/addComplaintRequestExample.json
+        postResponseType: object
+        postResponseExample: !include example/addComplaintResponseExample.json
+
+
+/pro-track_complaint:
+
+  description: Used to track complaint using complaintId
+  is: [client-id-enforcement]
+  get:
+    is: [trackComplaintQueryParam]
+  type:
+      customerPortalResourceType.request-type:
+        methodDescription: used to fetch complaint details
+        getResponseType: !include dataType/trackComplaintDataType.raml
+        getResponseExample: !include example/trackComplaintResponseExample.json  
+        
+
+/pro-close_complaint:
+
+  description: Used to close complaint
+  is: [client-id-enforcement]
+
+  put:
+    is: [closeComplaintQueryParam]
+  type:
+      customerPortalResourceType.request-type:
+        methodDescription: used to close complaint
+        putType: !include dataType/closeComplaintDataType.raml
+        putResponse: !include example/closeComplaintResponse.json
+        putRequestExample: !include example/closeComplaintRequest.json
+
+/addProductQuantity:
+  description: Used to add product quantity
+  is: [client-id-enforcement]
+  put:
+    is: [productQuantityQueryParam]
+  type:
+      customerPortalResourceType.request-type:
+        putType: !include dataType/productQuantityDataType.raml
+        putResponse: !include example/productQuantityResponseExample.raml
+        putRequestExample: !include example/productQuantityRequestExample.raml
+/ping:
+  description: To check the status of Api 
+  get:
+  type:
+    customerPortalResourceType.request-type:
+      getResponseType: !include dataType/healthCheckDataType.raml
+      getResponseExample: !include example/healthCheckExample.json       
+        

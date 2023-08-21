@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="getCustomerDetailsFlow" doc:id="6317858c-a472-4cd5-b470-c7978cc6a0fa" >
+		<try doc:name="Try" doc:id="2a25bc8c-55f0-42a5-aa58-167a05cd227f" >
+			<http:request method="GET" doc:name="Fetch Customer Details" doc:id="26743d2f-de2b-417e-9a8c-d37887967012" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="customers" >
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_secret : p('secure::sfdc.client_secret'),
+	client_id : p('secure::sfdc.client_id')
+}]]]></http:headers>
+				<http:query-params ><![CDATA[#[output application/java
+---
+{
+	customerId : attributes.queryParams.customerId
+}]]]></http:query-params>
+			</http:request>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="00defadb-af42-47bc-8e23-8544464a319d" >
+					<ee:transform doc:name="Error Message" doc:id="d4bc2d11-689f-4d46-a58e-26f31f1125f2" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<logger level="ERROR" doc:name="Logging Error Message" doc:id="f5bcb51f-3026-4bbc-aef0-5e07032b86bf" message="#[payload]" />
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Customer Detials Response" doc:id="336a70a7-2eba-49de-830b-151aa5fd9b1f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Customer_Id: payload.customerId,
+	Email_Id: payload.emailId,
+	First_Name: payload.firstName,
+	Last_Name: payload.lastName,
+	Gender: upper(payload.gender),
+	Address: payload.address,
+	Pincode: payload.pincode as Number,
+	Phone_Number: payload.phoneNumber as Number,
+	Saved_CardDetails: payload.savedCards
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

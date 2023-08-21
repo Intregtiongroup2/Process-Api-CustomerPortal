@@ -1,0 +1,10 @@
+%dw 2.0
+
+type auto_843013a0_e349_4232_9ad5_d5196bc0e0be_Input_Payload = {
+  quantity: Number, 
+  customerId?: String, 
+  emailId?: String, 
+  itemNo: Number, 
+  _?: Any
+}
+

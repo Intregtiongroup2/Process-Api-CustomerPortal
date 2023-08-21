@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="pro-cartDetailsFlow" doc:id="5c6a869b-deec-4f89-8c64-99d0cc86b9bd" >
+		<try doc:name="Try" doc:id="bb4db8df-e8b7-4ed3-8e3d-d5313a0b52db" >
+			<http:request method="GET" doc:name="Fetch cart Details" doc:id="c4316361-17a9-4f6a-8860-81254c2d0b55" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="cart" >
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+				<http:query-params ><![CDATA[#[output application/json
+---
+if ( !isEmpty(attributes.queryParams.emailId)==true ) {
+	emailId: attributes.queryParams.emailId
+}
+	else {
+	(customerId: attributes.queryParams.customerId)
+}]]]></http:query-params>
+			</http:request>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5e19f418-810b-4451-a27a-fb8926039364" >
+					<ee:transform doc:name="Error Message" doc:id="298ed95a-26bc-4632-bfb8-c0233dc7b708" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Cart Details Response" doc:id="152b8b15-e0c2-498f-b25a-b49567b6be53" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	(customerId: payload.customerId ) if(!isEmpty(payload.customerId)),
+	(customerEmailId: payload.customerEmail) if(!isEmpty(payload.customerEmail)),
+	Items: payload.Items mapObject {
+		($$) : {
+			"Product_Title": $.Product_Title,
+			"Warranty": $.Warranty,
+			"Quantity": $.Quantity,
+			"Price": $.Price,
+			"Delivery_Charge": $.Delivery_Charge,
+			"Total_Price": $.Total_Price,
+			"Add_to_cart_Date": $.Add_to_cart_Date,
+			"Expected_Delivery": $.Expected_Delivery
+		}
+	},
+	Cart_Total_Amount: payload.Total_Amount
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

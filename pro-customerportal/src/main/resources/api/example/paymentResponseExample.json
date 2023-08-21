@@ -1,0 +1,33 @@
+{
+    "orderId": "a035i00000Bwioj",
+    "Items": [
+            {
+                "Product_Title": "REALME-NARZO-N55-6GB-64GB",
+                "Warranty": "1-Years",
+                "Quantity": 1,
+                "Price": 18500,
+                "Delivery_Charge": 100,
+                "Total_Price": 18600
+            },
+            {
+                "Product_Title": "SAMSUNG-GALAXY-6GB-128GB",
+                "Warranty": "1-Years",
+                "Quantity": 1,
+                "Price": 18500,
+                "Delivery_Charge": 100,
+                "Total_Price": 18600
+            }
+    ],
+    "CustomerInfo": {
+        "Email": "rishav@gmail.com",
+        "Phone_Number": "7980710289",
+        "Address": "Baruipur, Ukilpara",
+        "Pincode": "700144"
+    },
+    "PaymentInfo": {
+        "Total_Price": 30100,
+        "Payment_Mode": "Card",
+        "Payment_Status": "Successful"
+    },
+    "Expected_Delivery": "Within 12-07-2023"
+}

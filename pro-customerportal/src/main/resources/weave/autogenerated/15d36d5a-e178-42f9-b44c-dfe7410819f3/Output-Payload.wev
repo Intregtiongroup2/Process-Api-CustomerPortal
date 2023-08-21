@@ -1,0 +1,24 @@
+%dw 2.0
+
+type auto_15d36d5a_e178_42f9_b44c_dfe7410819f3_Output_Payload = {
+  PaymentInfo?: {
+    Payment_Status: String, 
+    Payment_Mode: String, 
+    Total_Price: Number, 
+    _?: Any
+  }, 
+  paymentIsValid?: Boolean, 
+  orderId?: String, 
+  Items?: Array<{    Warranty: String,     Quantity: Number,     Product_Title: String,     Total_Price: Number,     _?: Any  }>, 
+  Expected_Delivery?: String, 
+  message?: String, 
+  CustomerInfo?: {
+    Email: String, 
+    Address: String, 
+    Phone_Number: String, 
+    Pincode: String, 
+    _?: Any
+  }, 
+  _?: Any
+}
+

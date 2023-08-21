@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="pro_addComplaintFlow" doc:id="e6898c0e-d75c-4fd7-9d4e-4ee7bb5ef495" >
+		<logger level="INFO" doc:name="flow started" doc:id="6b93c14f-3857-43ef-ae22-b04b84e855f6" message="add complaint flow started"/>
+		<set-variable value="#[payload]" doc:name="initialPayload" doc:id="d508d127-1529-4440-93b0-477bd3fc9aef" variableName="initialPayload"/>
+		<http:request method="GET" doc:name="Fetch orderDetails" doc:id="3e12e691-0c43-4c76-b488-45bb2173d08f" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="orderDetails">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret":p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"orderId" : payload.orderId
+}]]]></http:query-params>
+		</http:request>
+		<set-variable value="#[payload]" doc:name="orderDetails" doc:id="efb60dbf-cd64-4871-8e88-30b9092cbca9" variableName="orderDetails"/>
+		<choice doc:name="customerId vaid?" doc:id="670d3012-2738-49d2-a148-010c56bd3c86" >
+			<when expression='#[vars.initialPayload.customerId == vars.orderDetails.customerId]'>
+				<flow-ref doc:name="check_product_bought" doc:id="263705fb-69ff-4eeb-922f-2233730506e0" name="check_product_bought"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="error" doc:id="a4732d8a-85aa-4f45-b719-7cb73753e0b1" message="Customer Id mismatch"/>
+				<raise-error doc:name="customer ID mismatch" doc:id="7aed4b51-b61b-4449-99b3-0ec397d68cb4" type="ERR:INVALID_CUSTID" description="The given orderId does not contain the given customerId"/>
+			</otherwise>
+		</choice>
+		<choice doc:name="complaintDetails exists?" doc:id="533b18dd-c2de-4cbd-b7fa-3cc284782c4e" >
+			<when expression="#[!isEmpty(payload.errorType)]">
+				<http:request method="POST" doc:name="add complaint details" doc:id="f116e90f-8b55-4a39-a0c8-d23a087a3f10" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="complaint" >
+					<http:body ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    "orderId": vars.initialPayload.orderId,
+    "productTitle": vars.initialPayload.productTitle,
+    "quantity": vars.initialPayload.quantity,
+    "customerId": vars.initialPayload.customerId,
+    "complaint_category": vars.initialPayload.complaint_category,
+    "description": vars.initialPayload.description
+}]]]></http:body>
+					<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret":p('secure::sfdc.client_secret')
+}]]]></http:headers>
+				</http:request>
+<!-- [STUDIO:"fetch complaintId"]				<http:request method="GET" doc:name="fetch complaintId" doc:id="0b0de540-a1b3-4031-9a0b-fe0154b74170" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="complaint" >
+					<http:headers ><![CDATA[#[output application/java
+&#45;&#45;-
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret":p('secure::sfdc.client_secret')
+}]]]></http:headers>
+					<http:query-params ><![CDATA[#[output application/java
+&#45;&#45;-
+{
+	"orderId" : vars.initialPayload.orderId,
+	"productTitle": vars.initialPayload.productTitle
+}]]]></http:query-params>
+				</http:request> [STUDIO] -->
+				<ee:transform doc:name="success message" doc:id="1b7971f1-28bf-4516-8907-edaf3d6ed186" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[201]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="error" doc:id="7bd0dca7-3fb6-453e-90ca-d61b181c09da" message="complaint is already registered" />
+				<raise-error doc:name="COMPLAINT_EXISTS" doc:id="0a998815-6d44-4cae-936c-00e2cb59d70c" type="ERR:COMPLAINT_EXISTS" description="The complaint regarding the mentioned orderId and productTitle is already present"/>
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="INVALID_CUSTID" doc:id="88fb5284-f287-45d1-8c34-278fed02ae52" type="ERR:INVALID_CUSTID">
+				<logger level="INFO" doc:name="INVALID_CUSTID" doc:id="cb8aa5c6-2402-49b3-b612-4e174c3b8a30" message="INVALID_CUSTID" />
+				<ee:transform doc:name="Error Message" doc:id="8645eb2b-3387-471a-9e98-b78613cb9257" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"errorType": error.errorType.identifier,
+	"errorDescription": error.description
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="PROD_OR_QTY_INV" doc:id="75cfa9da-41d2-44d3-802a-6aab00d5448b" type="ERR:PROD_OR_QTY_INV" >
+				<logger level="INFO" doc:name="PROD_OR_QTY_INV" doc:id="447a3ab9-11a8-4833-abad-aa97748416b0" message="PROD_OR_QTY_INV" />
+				<ee:transform doc:name="Error Message" doc:id="719e22a0-9355-406d-af5c-38b6561ce419" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"errorType": error.errorType.identifier,
+	"errorDescription": error.description
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="INVALID_STATUS" doc:id="0a86c0f8-c06e-4026-adcf-687ece06a5a4" type="ERR:INVALID_STATUS" >
+				<logger level="INFO" doc:name="INVALID_STATUS" doc:id="823481b3-1b7c-4d65-a6b8-f923725804aa" message="INVALID_STATUS" />
+				<ee:transform doc:name="Error Message" doc:id="91868f4d-316e-469b-86c0-b1ea373e2756" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"errorType": error.errorType.identifier,
+	"errorDescription": error.description
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="COMPLAINT_EXISTS" doc:id="b866eefc-0d7e-4d75-b17d-9e53501155c2" type="ERR:COMPLAINT_EXISTS" >
+				<logger level="INFO" doc:name="COMPLAINT_EXISTS" doc:id="b42aacc8-1649-4d97-96ef-925f15fd30e1" message="COMPLAINT_EXISTS" />
+				<ee:transform doc:name="Error Message" doc:id="b8e6bd9a-b3e3-4530-ae43-2441ad375d70" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"errorType": error.errorType.identifier,
+	"errorDescription": error.description
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="RETURN_PERIOD_OVER" doc:id="9c19f3e0-f57c-456e-a51d-b4db93e107b1" type="ERR:RETURN_PERIOD_OVER">
+				<logger level="INFO" doc:name="RETURN_PERIOD_OVER" doc:id="51003f12-f421-4b8e-b715-4ddca80b3b4e" message="RETURN_PERIOD_OVER" />
+				<ee:transform doc:name="Error Message" doc:id="e282eed9-71c3-4e54-8f30-aa9ebbb86b75" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"errorType": error.errorType.identifier,
+	"errorDescription": error.description
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="ANY" doc:id="19e6b8a1-6075-41fd-8ae8-69a7890a4dc5" type="ANY">
+				<logger level="INFO" doc:name="Error" doc:id="e830fee7-c57e-41af-ac49-38ec262e49e9" message="ANY error occoured" />
+				<ee:transform doc:name="Error Message" doc:id="d8ccbda4-46c1-4a44-ad87-43a3b38fb6c6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<sub-flow name="check_product_bought" doc:id="c14dd550-859c-40f0-a788-16e3a2534771" >
+		<choice doc:name="productTitle and quantity valid?" doc:id="4fdee974-ad20-474f-9f67-60ec14ee0b01" >
+			<when expression="#[(valuesOf(payload.Items mapObject ((value, key, index) -&gt;&#10;{key:value.Product_Title} )) contains(vars.initialPayload.productTitle))&#10;and&#10;(vars.initialPayload.quantity&lt;=(sum(vars.orderDetails.Items filterObject ((value) -&gt; value.Product_Title == vars.initialPayload.productTitle) pluck ((value, key, index) -&gt; (value.Quantity) ))))]" >
+				<flow-ref doc:name="check_status" doc:id="366d5b1b-37c7-4a31-9bd3-2e203926c56e" name="check_status"/>
+			</when>
+			<otherwise >
+				<raise-error doc:name="product or quantity invalid" doc:id="f141de1f-0ac7-47cf-9337-02120bd62efd" type="ERR:PROD_OR_QTY_INV" description="The given product was not bought in the order with the given orderId or the quantity of complaint is greater than the quantity bought" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="check_status" doc:id="22fef6ea-09b7-48be-9a72-f41a898f9a79" >
+		<choice doc:name="status valid?" doc:id="774cb644-3321-45e3-a41c-2e2e5cf85db0" >
+			<when expression='#[(vars.initialPayload.complaint_category == "Wrong_Items" and &#10;vars.orderDetails.Status == "Delivered") or&#10;&#10;(vars.initialPayload.complaint_category == "Damaged_Items" and &#10;vars.orderDetails.Status == "Delivered")or&#10;&#10;(vars.initialPayload.complaint_category == "Delivery_Delay" and &#10;vars.orderDetails.Status == "In Transit")]'>
+				<flow-ref doc:name="check_return_period" doc:id="5aca453e-f65a-4477-82c5-dd41f4873f0d" name="check_return_period"/>
+			</when>
+			<otherwise >
+				<raise-error doc:name="INVALID_STATUS" doc:id="03f0b378-3fd8-4e4e-93aa-c0438299a75e" type="ERR:INVALID_STATUS" description="The status of the product is invalid for the given complaint category"/>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="check_return_period" doc:id="1bb116d4-2e47-4ea0-ac54-93f7efc086a8">
+		<choice doc:name="within return period?" doc:id="5226945d-0a2f-43b6-86ec-17bb4f850dbd">
+			<when expression='#[(vars.initialPayload.complaint_category == "Delivery_Delay")&#10;or&#10;((vars.initialPayload.complaint_category == "Wrong_Items" or &#10;vars.initialPayload.complaint_category == "Damaged_Items" ) and&#10;&#10;(daysBetween(vars.orderDetails.Delivered_Date, now()) &lt;= 10))]'>
+				<flow-ref doc:name="check_complaintTable" doc:id="bcf3e82c-bd93-4ab8-990b-8cf57ec5f97a" name="check_complaintTable" />
+			</when>
+			<otherwise>
+				<raise-error doc:name="RETURN_PERIOD_OVER" doc:id="fcaa56e0-5381-4d3d-b253-366297babf60" type="ERR:RETURN_PERIOD_OVER" description="The return period of the mentioned item is over" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="check_complaintTable" doc:id="22337113-e0cf-468a-81b6-f26677feab16" >
+		<try doc:name="Try" doc:id="3e61dcd6-622e-40f6-8356-8122abfb388c" >
+			<http:request method="GET" doc:name="check complaintDetails" doc:id="0da5e719-c01d-48d3-95ac-e80bfd79ea09" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="complaint">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret":p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	"orderId" : vars.initialPayload.orderId,
+	"productTitle": vars.initialPayload.productTitle
+}]]]></http:query-params>
+		</http:request>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="96d6bd4b-5b64-466b-a621-22596685565f" >
+					<ee:transform doc:name="Error Message" doc:id="57a61b99-85ee-4e95-8804-02609b7a2c23" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="Result" doc:id="472409c3-8903-4dce-80bf-d6e7d1b858fa" message='#[%dw 2.0&#10;output application/json&#10;---&#10;if(!isEmpty(payload.errorType))&#10;{&#10;	"message":"Complaint details not yet registered"&#10;}&#10;else&#10;{&#10;	"message":"Complaint details already exists"&#10;}]' />
+	</sub-flow>
+</mule>

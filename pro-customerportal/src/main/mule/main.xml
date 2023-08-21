@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd ">
+  
+    <flow name="get:\productDetails:pro-customerportal-config">
+        <flow-ref doc:name="getProductDetialsFlow" doc:id="4e0964ea-a6fc-4366-bb2c-a6aa91058499" name="getProductDetialsFlow"/>
+    </flow>
+	<flow name="post:\pro-addToCart:application\json:pro-customerportal-config">
+        <flow-ref doc:name="pro-addToCartFlow" doc:id="5b130a7f-5c21-490e-88a9-86c5673bf387" name="pro-addToCartFlow"/>
+    </flow>
+	<flow name="get:\pro-cartDetails:pro-customerportal-config">
+        <flow-ref doc:name="pro-cartDetailsFlow" doc:id="e96e9ada-54f5-425b-83b5-aac9bb732417" name="pro-cartDetailsFlow"/>
+    </flow>
+	<flow name="put:\pro-modifyCart:application\json:pro-customerportal-config">
+        <flow-ref doc:name="modifyCartFlow" doc:id="51a1aaab-de60-4578-b1f3-14e255e584fa" name="modifyCartFlow"/>
+    </flow>
+	<flow name="post:\pro-payment:application\json:pro-customerportal-config">
+        <flow-ref doc:name="Sending Payload to proPayment Flow" doc:id="e590e431-32d5-4663-bb69-a2a6d197262b" name="pro-paymentFlow"/>
+    </flow>
+	<flow name="post:\pro-feedback:application\json:pro-customerportal-config">
+        <flow-ref doc:name="feedback Flow" doc:id="dc1cfe6c-fbcc-4abf-ba1a-b6a9f92e0022" name="pro-feedbackFlow"/>
+    </flow>
+	<flow name="get:\fetchCustomerDetails:pro-customerportal-config">
+		<flow-ref doc:name="getCustomerDetailsflow" doc:id="8b40359f-eee8-4042-a406-a31a041fff9e" name="getCustomerDetailsFlow"/>
+    </flow>
+	<flow name="put:\modifyCustomerDetails:application\json:pro-customerportal-config">
+        <flow-ref doc:name="updateCustomerDetails" doc:id="d7ac8479-25d0-4bed-babe-12ef482780b0" name="updateCustomerDetails"/>
+    </flow>
+	<flow name="put:\pro-orderDelivered:pro-customerportal-config">
+        <flow-ref doc:name="orderdeliveredFlow" doc:id="5132938e-172e-4649-8f5f-fa95866f37a4" name="orderdeliveredFlow"/>
+    </flow>
+	<flow name="put:\pro-orderCancelled:pro-customerportal-config">
+        <flow-ref doc:name="ordercanceleldFlow" doc:id="9a61bb69-e957-4748-ba42-1dca6964ac4b" name="ordercanceleldFlow"/>
+    </flow>
+	<flow name="get:\pro-track_complaint:pro-customerportal-config">
+        <flow-ref doc:name="pro-track_complaintFlow" doc:id="7a2fdc2f-86a7-4f3f-b04a-f2cd314f4bf9" name="pro-track_complaintFlow"/>
+    </flow>
+	<flow name="post:\pro-addComplaint:application\json:pro-customerportal-config">
+		<flow-ref doc:name="pro_addComplaintFlow" doc:id="dd846a9d-ada0-45a7-8368-d70f41d9f050" name="pro_addComplaintFlow"/>
+    </flow>
+	<flow name="put:\pro-close_complaint:application\json:pro-customerportal-config">
+		<flow-ref doc:name="pro_closed_complaintFlow" doc:id="30a30e9c-075c-4aea-a401-547082418860" name="pro_closed_complaintFlow"/>
+    </flow>
+	    <flow name="put:\addProductQuantity:application\json:pro-customerportal-config">
+        <flow-ref doc:name="updateProductQuantityFlow" doc:id="949a7ce0-9c92-43a4-9399-3512555a29a3" name="updateProductQuantityFlow" />
+    </flow>
+</mule>

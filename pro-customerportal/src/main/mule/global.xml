@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd 
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+	  <http:listener-config name="pro-customerportal-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8082" protocol="HTTPS">
+			<tls:context >
+				<tls:trust-store type="jceks" />
+				<tls:key-store type="${tls.keyStoreType}" path="${tls.keyPath}" alias="${tls.alias}" keyPassword="${secure::tls.keypass}" password="${secure::tls.pass}" />
+			</tls:context>
+		</http:listener-connection>
+    </http:listener-config>
+    <apikit:config name="pro-customerportal-config" api="pro-customerportal.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <http:request-config
+		name="HTTP_Request_configuration_sys_cp_sfdc"
+		doc:name="HTTP Request configuration"
+		doc:id="8f364abb-42ca-4e68-8c64-16c9f43292b1" basePath="/api/">
+		<http:request-connection protocol="${secure::sfdc.protocol}"
+			host="${secure::sfdc.host}" connectionIdleTimeout="${secure::sfdc.timeout}" responseBufferSize="${secure::sfdc.bufferSize}"/>
+	</http:request-config>
+	<http:request-config
+		name="HTTP_Request_configuration_sys_cp_loc"
+		doc:name="HTTP Request configuration"
+		doc:id="fe0440b9-2f99-409f-abbc-0ed299d95bba" basePath="${base.path}">
+		<http:request-connection protocol="${secure::loc.protocol}"
+			host="${secure::loc.host}" connectionIdleTimeout="${secure::loc.timeout}" responseBufferSize="${secure::loc.bufferSize}"/>
+	</http:request-config>
+	<email:smtp-config name="Email_Connector"
+		doc:name="Email SMTP" doc:id="b9110b8f-0322-4ed0-b9be-f632b9667e11">
+		<email:smtp-connection host="${secure::smtp.host}"
+			port="${secure::smtp.port}" user="${secure::smtp.username}"
+			password="${secure::smtp.password}">
+			<email:properties>
+				<email:property key="mail.smtp.starttls.enable"
+					value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="de9429ab-b5ba-4062-b14b-43cb5c32a464" >
+		<vm:queues >
+			<vm:queue queueName="modifyProduct" queueType="PERSISTENT" />
+			<vm:queue queueName="asyncCustomerDetails" queueType="PERSISTENT" />
+		</vm:queues>
+	</vm:config>
+	<configuration doc:name="Configuration"
+		doc:id="8b72c45a-e997-4e3a-a9e5-aa8db70352c2"
+		defaultErrorHandler-ref="errorError_Handler" />
+	<configuration-properties doc:name="Configuration properties" doc:id="fea1bd2c-c873-4959-bc42-9a7168f9840f" file="config.yaml" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="1f887d72-75c1-421d-b7b3-15a4794695b9" file="secureConfig.yaml" key="${decryptKey}" />
+	<api-gateway:autodiscovery apiId="${autodiscovery.id}" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="d9563546-d4fb-49c6-98ff-d55e5587268c" flowRef="pro-customerportal-main" />
+</mule>

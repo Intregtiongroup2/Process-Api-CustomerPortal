@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="updateProductQuantityFlow" doc:id="3ae8ae02-7e1d-41d4-b8d1-908721f23f1c" >
+		<http:request method="GET" doc:name="Fetch Product quantity" doc:id="1087dd06-a29a-48bf-8445-5c24c02e1006" config-ref="HTTP_Request_configuration_sys_cp_loc" path="products/{location}" target="productDetails">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_secret : p('secure::loc.client_secret'),
+	client_id : p('secure::loc.client_id')
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	location : attributes.queryParams.location
+}]]]></http:uri-params>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	productTitle : attributes.queryParams.productTitle
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Updated Quantity" doc:id="7b3c350b-5328-47e2-8c9e-d0e9143e4d92" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"quantity": payload.quantity + vars.productDetails.quantity
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<http:request method="PUT" doc:name="Update product quantity in SFDC" doc:id="ac553c2d-cbac-4636-9aca-5de0e726248f" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="products" target="response" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	productTitle : vars.productDetails.productTitle ,
+	location : vars.productDetails.location
+}]]]></http:query-params>
+		</http:request>
+		<http:request method="PUT" doc:name="Update product quantity in local" doc:id="f7299577-4327-4436-a00d-9a31ce189ad4" config-ref="HTTP_Request_configuration_sys_cp_loc" path="products/{location}" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::loc.client_id'),
+	"client_secret": p('secure::loc.client_secret')
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/json
+---
+{
+	location : vars.productDetails.location
+}]]]></http:uri-params>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	productTitle : vars.productDetails.productTitle 
+}]]]></http:query-params>
+		</http:request>
+	</flow>
+</mule>

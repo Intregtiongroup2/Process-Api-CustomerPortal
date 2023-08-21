@@ -1,0 +1,22 @@
+%dw 2.0
+
+type auto_94c60e89_416c_4aa1_80dd_696d5cde86bf_Output_Payload = {
+  PaymentInfo: {
+    Payment_Status: String, 
+    Payment_Mode: String, 
+    Total_Price: Number, 
+    _?: Any
+  }, 
+  orderId: String, 
+  Items: Array<{    Warranty: String,     Quantity: Number,     Product_Title: String,     Total_Price: Number,     _?: Any  }>, 
+  Expected_Delivery: String, 
+  CustomerInfo: {
+    Email: String, 
+    Address: String, 
+    Phone_Number: String, 
+    Pincode: String, 
+    _?: Any
+  }, 
+  _?: Any
+}
+

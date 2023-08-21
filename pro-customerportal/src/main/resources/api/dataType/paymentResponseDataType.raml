@@ -1,0 +1,56 @@
+#%RAML 1.0 DataType 
+type: object
+properties:
+  orderId:
+    type: string
+    required: true
+  Items:
+    required: true
+    type: array
+    items:
+      type: object
+      properties:
+        Product_Title:
+          required: true
+          type: string 
+        Warranty:
+          required: true
+          type: string
+        Quantity:
+          required: true
+          type: number
+        Total_Price:
+          required: true
+          type: number
+  CustomerInfo:
+    type: object
+    required: true
+    properties:
+      Email:
+        type: string
+        required: true
+      Phone_Number:
+        type: string
+        required: true
+      Address:
+        type: string
+        required: true
+      Pincode:
+        type: string
+        required: true
+  PaymentInfo:
+    type: object
+    required: true
+    properties:
+      Total_Price:
+        type: integer
+        required: true
+      Payment_Mode:
+        type: string
+        required: true
+      Payment_Status:
+        type: string
+        required: true
+  Expected_Delivery:
+    type: string
+    required: true

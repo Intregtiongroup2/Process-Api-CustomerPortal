@@ -1,0 +1,16 @@
+%dw 2.0
+
+type auto_6317858c_a472_4cd5_b470_c7978cc6a0fa_Output_Payload = {
+  firstName: String, 
+  lastName: String, 
+  pincode: String, 
+  savedCards: { _?: Any }, 
+  address: String, 
+  phoneNumber: String, 
+  gender: String, 
+  customerId: String, 
+  emailId: String, 
+  location: "Kolkata" | "Mumbai" | "Hyderabad" | "Bangalore", 
+  _?: Any
+}
+

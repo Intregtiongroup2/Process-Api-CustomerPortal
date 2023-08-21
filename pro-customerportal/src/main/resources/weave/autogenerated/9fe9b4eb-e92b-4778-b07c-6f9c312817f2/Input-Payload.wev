@@ -1,0 +1,10 @@
+%dw 2.0
+
+type auto_9fe9b4eb_e92b_4778_b07c_6f9c312817f2_Input_Payload = {
+  pincode?: String, 
+  address?: String, 
+  phoneNumber?: String, 
+  cardDetails?: { _?: Any }, 
+  _?: Any
+}
+

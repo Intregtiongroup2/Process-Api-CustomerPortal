@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="pro_closed_complaintFlow" doc:id="2f77e438-def0-4245-8ba4-62b6f03670af" >
+		<logger level="INFO" doc:name="start" doc:id="db98f16a-597a-4d59-bf2a-ccbcf55b3e07" message="closed_complaint flow started"/>
+		<set-variable value="#[attributes.queryParams.complaintId]" doc:name="complaintId" doc:id="c48c2091-c802-4341-8902-bb30b9bd072e" variableName="complaintId"/>
+		<set-variable value="#[attributes.queryParams.action]" doc:name="action" doc:id="31b46ba5-0866-4e13-8c95-67792d1accda" variableName="action"/>
+		<http:request method="GET" doc:name="fetch complaint details" doc:id="cf1dc306-c6bb-4d34-8762-c951f740ea3e" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="complaint" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret":p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"complaintId" : attributes.queryParams.complaintId
+}]]]></http:query-params>
+		</http:request>
+		<set-variable value="#[payload]" doc:name="complaintDetails" doc:id="db0c7551-f369-4a49-acd0-563d3e656db7" variableName="complaintDetails"/>
+		<choice doc:name="Choice" doc:id="257fe05c-601b-4f52-a9cf-a7983c1b59a0" >
+			<when expression='#[vars.complaintDetails.status=="Active"]'>
+				<flow-ref doc:name="action_router" doc:id="39a8f871-088d-4029-a073-d0102ad110bd" name="action_router"/>
+			</when>
+			<otherwise>
+				<raise-error doc:name="COMPLAIN_ALREADY_CLOSED" doc:id="340132d4-d472-4fdc-b95f-f6e7e00d1aae" type="ERR:COMPLAIN_ALREADY_CLOSED" description="The complaint with the given Id is already closed" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="COMPLAIN_ALREADY_CLOSED" doc:id="28d7c50c-8307-4988-8d62-3f77760d9083" type="ERR:COMPLAIN_ALREADY_CLOSED">
+				<ee:transform doc:name="Error Message" doc:id="86106b4a-cfdd-43c4-8d0b-917420c537ec" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"errorType": error.errorType.identifier,
+	"errorDescription": error.description
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<logger level="INFO" doc:name="COMPLAIN_ALREADY_CLOSED" doc:id="5427d192-3480-48ef-9b57-1cf67a4625ff" message="COMPLAIN_ALREADY_CLOSED" />
+			</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="ANY" doc:id="9388ced2-9fc3-4c99-ac7a-82b99606677d" type="ANY">
+				<logger level="INFO" doc:name="Complaint Id not found" doc:id="1fe3bb6c-84c6-44b0-be90-e026539ba018" message="Complaint Id not found" />
+				<ee:transform doc:name="Error Message" doc:id="8ba763cc-c903-4aa9-a4c5-68108c11ba60" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<sub-flow name="action_router" doc:id="84b83d9f-155a-45a2-9650-95805aa05d50" >
+		<choice doc:name="what is the value of action?" doc:id="738954f1-c636-4bc9-bd7c-fc373781ef7a" >
+			<when expression='#[vars.action == "Refund"]' >
+				<flow-ref doc:name="refundFlow" doc:id="86baa87b-78fb-4389-be40-de418a3c8997" name="refundFlow" />
+			</when>
+			<when expression='#[vars.action == "Replace"]' >
+				<flow-ref doc:name="replaceFlow" doc:id="11d13262-2c74-4b60-9de8-0f04fe09632e" name="replaceFlow" />
+			</when>
+			<otherwise >
+				<flow-ref doc:name="noneFlow" doc:id="af96c3ac-e741-42bb-a5a4-3010db280d80" name="noneFlow" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="refundFlow" doc:id="48447122-a7fa-4274-91eb-e18f45f338bb" >
+		<http:request method="PUT" doc:name="close complaint with status refund" doc:id="15fc1792-b895-440b-ba7d-e602bb6d22cf" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="complaint" >
+			<http:body ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    "action": "Refund",
+    "status": "Closed"
+}]]]></http:body>
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret":p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"complaintId" : vars.complaintId
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="success" doc:id="e19e0eca-2040-4623-ac90-4785b566adab" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"Your complaint has been successfully closed"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="replaceFlow" doc:id="b0e9ee91-f075-4284-a6e6-1775ffa0fb98" >
+		<http:request method="PUT" doc:name="close complaint with status replace" doc:id="2241a448-dc62-4e1c-95ee-74f59cea27d2" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="complaint" >
+			<http:body ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    "action": "Replace",
+    "status": "Closed"
+}]]]></http:body>
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret":p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"complaintId" : vars.complaintId
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="success" doc:id="8f5dadc8-e064-42e6-95b5-8f86dbf1f2b5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"Your complaint has been successfully closed"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="noneFlow" doc:id="c802c728-1102-4a9b-b59e-5b624b6e6845" >
+		<http:request method="PUT" doc:name="close complaint with status none" doc:id="36a7c137-5997-4df8-b0e1-d5100d5e6945" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="complaint" >
+			<http:body ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    "action": "None",
+    "status": "Closed"
+}]]]></http:body>
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret":p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"complaintId" : vars.complaintId
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="success" doc:id="5c9680b8-be88-415d-94cb-87c671f1e238" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"Your complaint has been successfully closed"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>

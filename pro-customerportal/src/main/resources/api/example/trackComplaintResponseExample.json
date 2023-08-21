@@ -1,0 +1,12 @@
+{
+  "complaintId": "ABCD1234",
+  "orderId": "a035i00000Bwioj",
+  "customerId": "KOL_1234",
+  "productTitle": "SAMSUNG-A2-4GB-64GB",
+  "quantity":1,
+  "complaint_category": "Wrong_Items",
+  "description": "Bad product",
+  "date_of_complaint": "2023-07-17",
+  "status": "Active",
+  "action": ""
+}

@@ -1,0 +1,8 @@
+%dw 2.0
+
+type auto_5c6a869b_deec_4f89_8c64_99d0cc86b9bd_Output_Payload = {
+  Cart_Total_Amount: Number, 
+  Items: { _?: Any }, 
+  _?: Any
+}
+

@@ -1,0 +1,12 @@
+{
+	"customerDetails": {
+		"customerId": "KOL_1000"
+	},
+	"paymentDetails": {
+		"paymentMode": "card",
+		"cardId": 1,
+		"cvvNumber": "1234",
+		"total_Amount": 15100
+	},
+	"productId": [1,2]
+}

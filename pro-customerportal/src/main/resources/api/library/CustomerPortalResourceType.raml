@@ -1,0 +1,45 @@
+#%RAML 1.0 Library
+traits:
+  errorResponse: !include errorTraits.raml
+resourceTypes:
+  request-type:
+    post?:
+      description: <<methodDescription>>
+      body:
+        application/json:
+          type: <<postType>>
+          example: <<postExample>>
+      responses:
+        201:
+          body:
+            application/json:
+              type: <<postResponseType>>
+              example: <<postResponseExample>>  
+    get?:
+      responses:
+        200:
+          body:
+            application/json:
+              type: <<getResponseType>>
+              example: <<getResponseExample>> 
+      is: [errorResponse]
+    put?:
+      body:
+        application/json:
+          type: <<putType>>
+          example: <<putRequestExample>>
+      responses:
+        200:
+          body:
+            application/json:
+              example: <<putResponse>>
+      is: [errorResponse]   
+
+  orderStatus-type:
+    put?:
+        responses:
+          200:
+            body:
+              application/json:
+                example: <<putResponse>>
+        is: [errorResponse]        

@@ -1,0 +1,24 @@
+#%RAML 1.0 DataType 
+type: object
+properties:
+  email:
+    type: string
+    required: false
+  customerId:
+    type: string
+    required: false
+  location:
+    type: string
+    required: true
+  products:
+    type: array
+    required: true
+    items:
+      type: object
+      properties:
+        productTitle:
+          type: string
+          required: true
+        quantity:
+          type: integer
+          required: true

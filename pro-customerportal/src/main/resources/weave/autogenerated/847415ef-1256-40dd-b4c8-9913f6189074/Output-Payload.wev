@@ -1,0 +1,16 @@
+%dw 2.0
+
+type auto_847415ef_1256_40dd_b4c8_9913f6189074_Output_Payload = {
+  productTitle: String, 
+  complaint_category: "Damaged_Items" | "Wrong_Items" | "Delivery_Delay", 
+  quantity: Number, 
+  complaintId: String, 
+  orderId: String, 
+  date_of_complaint: String, 
+  customerId: String, 
+  description: String, 
+  action: String, 
+  status: String, 
+  _?: Any
+}
+

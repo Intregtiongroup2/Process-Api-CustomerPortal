@@ -1,0 +1,10 @@
+{
+  "apiName": "pro-customerPortal",
+  "apiVersion": "v1.0.2",
+  "server": "mule.server",
+  "serviceHealth": {
+    "serviceType": "pro-customerPortal",
+    "status": "UP",
+    "message": "Alive"
+  }
+}
