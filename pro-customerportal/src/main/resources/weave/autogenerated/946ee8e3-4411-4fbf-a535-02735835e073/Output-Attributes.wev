@@ -1,0 +1,29 @@
+%dw 2.0
+
+type auto_946ee8e3_4411_4fbf_a535_02735835e073_Output_Attributes = {|
+  remoteAddress?: String, 
+  localAddress?: String, 
+  clientCertificate?: {|
+    publicKey?: {|  |}, 
+    "type"?: String, 
+    encoded?: Binary
+  |}, 
+  uriParams?: {|  |}, 
+  queryParams?: {|  |}, 
+  statusCode?: Number, 
+  requestPath?: String, 
+  relativePath?: String, 
+  scheme?: String, 
+  version?: String, 
+  method?: String, 
+  reasonPhrase?: String, 
+  requestUri?: String, 
+  queryString?: String, 
+  headers: {
+    client_secret?: String, 
+    client_id?: String, 
+    _?: String
+  }, 
+  listenerPath?: String
+|}
+

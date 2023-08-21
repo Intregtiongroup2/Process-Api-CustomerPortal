@@ -1,0 +1,736 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="244fc52b-8aae-4e36-bfb5-bad67113bb12" >
+		<salesforce:basic-connection username="muleprojectgroupexavalu@gmail.com" password="Muleprojectexavalu1234" securityToken="W8Injh4cJYcyoCzm3eTlOpJr" />
+	</salesforce:sfdc-config>
+	<flow name="FetchCartDetails" doc:id="6d654531-b6b1-4bc2-b3b6-77e41b38d006" >
+		<try doc:name="Try" doc:id="172aa6ee-e3a5-4b8f-8f9d-8306d378a446" >
+			<http:request method="GET" doc:name="Fetch cart Details" doc:id="7839084c-c9e9-4d25-9c8c-e7cc6e5a5c0f" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="${secure::sfdc.endpoints.cart}">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+				<http:query-params><![CDATA[#[output application/java
+---
+vars.externalId]]]></http:query-params>
+		</http:request>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="99a6c007-9136-4e0a-892b-07a6048d184c" >
+					<ee:transform doc:name="Error Message" doc:id="8c3945d0-d893-476d-ad85-386e54e0345b">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="httpStatus"><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="cartResponse" doc:id="4f78fdcf-163a-436d-89f1-5ea868be753a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+if (isEmpty(payload.errorType)==true ) {
+	"Existing_Items": payload.Items,
+	"Cart_Total_Amount": payload.Total_Amount
+}
+else ""
+
+
+
+
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="pro-addToCartFlow" doc:id="5386aa88-b8ee-4bc1-99a8-3ceaabbe5d58" >
+		<ee:transform doc:name="Add to Cart Details" doc:id="a5728eea-14b1-468f-8787-a00c3a099cf6" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="purchaseDetails" ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Checking EmailId or CustomerId present?" doc:id="d88e3bea-fe0a-46b5-9b88-7735c17c670c" >
+			<when expression="#[!isEmpty(payload.customerId)== true]">
+				<set-variable value="#[output application/json&#10;---&#10;{&#10;	customerId: payload.customerId&#10;}]" doc:name="externalId (customerId)" doc:id="affea6db-2f07-4e6a-a16a-90954055b8ae" variableName="externalId"/>
+				<try doc:name="Try" doc:id="0cda83fc-6fee-41b3-8a46-8eb5eec0d23d" >
+					<http:request method="GET" doc:name="Fetch Customer  Details" doc:id="d578d721-4ff9-409a-91e6-ae0e5d9f7301" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="${secure::sfdc.endpoints.customers}" target="vCustomerDetails">
+					<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+						<http:query-params><![CDATA[#[output application/java
+---
+{
+	customerId : payload.customerId
+}]]]></http:query-params>
+				</http:request>
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3358b266-f9b8-4952-acf5-3dc62dfeb536" >
+							<ee:transform doc:name="Error Message" doc:id="c7c6b6c7-3d43-4628-b5d1-21dcc78f05fc" >
+								<ee:message >
+									<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+								</ee:message>
+								<ee:variables >
+									<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+								</ee:variables>
+							</ee:transform>
+						</on-error-propagate>
+					</error-handler>
+				</try>
+				<ee:transform doc:name="Add Email id in the puchase Details payload" doc:id="b606b149-3d36-4579-8110-d8dd372c13f5">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.purchaseDetails ++
+{
+	email: vars.vCustomerDetails.emailId
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+						<ee:set-variable variableName="purchaseDetails" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.purchaseDetails ++
+{
+	email: vars.vCustomerDetails.emailId
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+			</when>
+			<when expression="#[!isEmpty(payload.email)==true]">
+				<set-variable value="#[output application/json&#10;---&#10;{&#10;	emailId: payload.email&#10;}]" doc:name="externalId(emailId)" doc:id="af5f6d47-477f-4020-b00d-b4722a6da2ee" variableName="externalId"/>
+				<ee:transform doc:name="Transform Message" doc:id="b2df6784-a0ed-4e07-9947-6b1e21a3bd1a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="purchaseDetails" ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<raise-error doc:name="neither customerId nor emailId is Present" doc:id="d5035736-8993-4328-9032-853ef73b1a23" type="ERR:EMAILID_OR_CUSTOMERID_NOT_FOUND" description="Either Provide EmailId(New or Guest user ) or CustomerId(existing user) in body "/>
+			</otherwise>
+		</choice>
+		<try doc:name="Try" doc:id="eae7bdf4-77c6-46db-b69b-11ccf63c45a0" >
+			<parallel-foreach doc:name="Parallel For Each" doc:id="3a52ca2c-f1e9-43e1-af69-6b30400022e3" collection="#[vars.purchaseDetails.products]">
+			<flow-ref doc:name="Check product availability and modify quantity for every product" doc:id="7d95f7e5-d040-4da2-9c5c-5ce797d8ad13" name="product-availability-check" />
+		</parallel-foreach>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f5695c86-f64c-41bd-ad6a-783ef09296f5" >
+					<ee:transform doc:name="Error Message" doc:id="9fb5c6e4-17b9-465c-911a-cc5d4929e2ab" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Location given is not valid or currently we aren't delivering in the region"
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<flow-ref doc:name="Fetch Cart details from Salesforce" doc:id="8a9f26fd-d2fb-4f99-81a1-ebd1d69f8a76" name="FetchCartDetails" target="vCartInfo"/>
+				<choice doc:name="checking cart Detials Exists?" doc:id="c8215822-c933-406a-bfa9-275852e547ee" >
+			<when expression="#[!(isEmpty(vars.vCartInfo))]">
+				<ee:transform doc:name="Adding new Items in Existing Items" doc:id="4419e3dd-633a-4d83-a2d1-b6cbad0ad510">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var idx = if ( isEmpty(vars.vCartInfo.Existing_Items)==false ) (max(keysOf(vars.vCartInfo.Existing_Items)) as Number) else 0 
+---
+{
+	"Items": vars.vCartInfo.Existing_Items default {} ++ {
+		((payload.payload) map {
+			(($$ +idx +1) : $)if($.Product_Title != null)
+		})
+	},
+	"Total_Amount": vars.vCartInfo.Cart_Total_Amount + sum(payload.payload.Total_Price default [0] )
+}
+
+]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="purchaseResponse"><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Items": {
+		(payload.payload map (
+		  (($$+1): {
+			"Product_Title": $.Product_Title,
+			"Warranty": $.Warranty,
+			"Quantity": $.Quantity,
+			"Price": $.Price,
+			"Delivery_Charge": $.Delivery_Charge,
+			"Total_Price": $.Total_Price,
+			"Expected_Delivery": $.Expected_Delivery
+		}) if( $.Product_Title != null)))
+	},
+	"Total_Price": sum(payload.payload.Total_Price default [0] ),
+	("Enquiry": (payload..payload.message))  if( payload..payload.message != null)
+}  ]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<choice doc:name="Check any Item added or not?" doc:id="38313e11-adf5-44f0-bfc9-cb31b6a737ed">
+					<when expression="#[(vars.vCartInfo.Existing_Items == payload.Items)]">
+						<ee:transform doc:name="Not Added" doc:id="0854a652-c96f-4100-8bd5-f6e9fb34fd0e">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	successful: false
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</when>
+					<otherwise>
+						<try doc:name="Try" doc:id="3733c4bc-8222-42e3-ad6a-24ebe5314939" >
+							<http:request method="PUT" doc:name="Add items in the existing cart" doc:id="c18b074a-b176-4356-8b32-b1f6e1e474fb" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="${secure::sfdc.endpoints.cart}">
+							<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+								<http:query-params><![CDATA[#[output application/java
+---
+vars.externalId]]]></http:query-params>
+						</http:request>
+							<error-handler >
+								<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="8ed2a88a-0edb-47ae-9327-1c21498e4818" >
+									<ee:transform doc:name="Error Message" doc:id="3728ed5f-c590-494f-85f5-d7266e49e479" >
+										<ee:message >
+											<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+										</ee:message>
+										<ee:variables >
+											<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+										</ee:variables>
+									</ee:transform>
+								</on-error-propagate>
+							</error-handler>
+						</try>
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="create new cart and add items" doc:id="b90733ad-48bb-459b-8d3f-33b0bd78df38">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var products = {
+	(payload.payload map ((($$ +1): $) if($.Product_Title != null)))
+}
+---
+vars.externalId  default {} ++{
+	"Items": products,
+	"Total_Amount": sum(payload.payload.Total_Price default [0] ),
+	"Status": "Booked",
+	"Nearest_Db_Location": (products..Nearest_Db_Location distinctBy($))[0]
+} ]]></ee:set-payload>
+				</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="purchaseResponse"><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Items": {
+		(payload.payload map (
+		  (($$+1): {
+			"Product_Title": $.Product_Title,
+			"Warranty": $.Warranty,
+			"Quantity": $.Quantity,
+			"Price": $.Price,
+			"Delivery_Charge": $.Delivery_Charge,
+			"Total_Price": $.Total_Price,
+			"Expected_Delivery": $.Expected_Delivery
+		}) if( $.Product_Title != null)))
+	},
+	"Total_Price": sum(payload.payload.Total_Price default [0] ),
+	("Enquiry": (payload..payload.message))  if( payload..payload.message != null)
+}  ]]></ee:set-variable>
+			</ee:variables>
+			
+</ee:transform>
+				<choice doc:name="check items added or not?" doc:id="08e221cf-609b-4780-8e92-4ba0394e75af" >
+					<when expression="#[!isEmpty(payload.Items) == true]">
+						<try doc:name="Try" doc:id="92cf419b-2b6e-4622-b008-f1d7e1b1b494">
+					<http:request method="POST" doc:name="Create New cart and add items" doc:id="e21fe1d7-7918-46bb-a9ed-963687d3cbf5" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="${secure::sfdc.endpoints.cart}">
+						<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+					</http:request>
+					<error-handler>
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="a31465a7-76a2-4f7f-9e6f-e17fa2c65d59">
+							<ee:transform doc:name="Error Message" doc:id="7c3a8a19-f5a8-48bf-bee5-953e2a79182a">
+								<ee:message>
+									<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+								</ee:message>
+								<ee:variables>
+									<ee:set-variable variableName="httpStatus"><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+								</ee:variables>
+							</ee:transform>
+						</on-error-propagate>
+					</error-handler>
+				</try>
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Not Added" doc:id="79b43a06-cccd-4d85-b81a-0fc6dbc49daf" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	successful: false
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="add to cart Response" doc:id="eaf808aa-9636-4bbe-8d8f-aa68cae34fe2">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if ( payload.successful==true ) {
+	"message": "Added in the Cart",
+	"Items_Added_In the Cart": vars.purchaseResponse.Items,
+	("Enquiry": vars.purchaseResponse.Enquiry) if(vars.purchaseResponse.Enquiry != null )
+}
+	else {
+	"message": vars.purchaseResponse.Enquiry
+}
+	
+	]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+			</ee:variables>
+		</ee:transform>
+	</flow>
+	<flow name="product-availability-check" doc:id="2ec93228-8e8a-4927-9823-18b029a0df13" >
+		<ee:transform doc:name="Product Request Information" doc:id="2fe84604-0c2e-427e-a49a-7cfdc0f3f3c3" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="productTitle" ><![CDATA[%dw 2.0
+output application/java
+---
+upper(payload.productTitle)]]></ee:set-variable>
+				<ee:set-variable variableName="location" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.purchaseDetails.location]]></ee:set-variable>
+				<ee:set-variable variableName="email" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.purchaseDetails.email]]></ee:set-variable>
+				<ee:set-variable variableName="quantity" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.quantity]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Find nearest warehouse location" doc:id="c1f2bf1f-2ec2-4ba5-8979-c4e98a0ef1e0" name="callingExternalApiToFindNearestWareHouseLocation" target="Nearest_Warehouse_locations"/>
+		<logger level="INFO" doc:name="Nearest WareHouse Location Details" doc:id="ace3b1bd-c3f9-4107-ad46-399ee50f156f" message="#[vars.Nearest_Warehouse_locations]"/>
+				<try doc:name="Try" doc:id="62f7364e-bcfa-4c2c-9db5-e7b21a3c41fd">
+			<http:request method="GET" doc:name="Fetch Product Details from Nearest WareHouse( MongoDB)" doc:id="a7349db5-6fb6-46e8-8b8a-72b9aa5ae1eb" config-ref="HTTP_Request_configuration_sys_cp_loc" path="${secure::loc.endpoints.products}/{location}">
+				<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::loc.client_id'),
+	client_secret : p('secure::loc.client_secret')
+
+}]]]></http:headers>
+				<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	location : vars.Nearest_Warehouse_locations.Nearest_location
+}]]]></http:uri-params>
+				<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle : vars.productTitle
+}]]]></http:query-params>
+				<http:response-validator>
+					<http:success-status-code-validator values="200" />
+				</http:response-validator>
+			</http:request>
+			<error-handler>
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5e04c2e0-0d58-4336-bc1c-4dd5ac6e8324" type="ANY">
+					<ee:transform doc:name="Error Message" doc:id="0b89a5bf-5ea2-42f5-80b8-adaaca34dd39">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="httpStatus"><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<logger level="ERROR" doc:name="Logging Error" doc:id="66d1a9ec-8238-4b96-92b5-379878245315" message="#[payload]" />
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="Product Details Response" doc:id="499a51d9-4984-4daa-8953-886e3470c87b" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]"/>
+		<ee:transform doc:name="Transforming Product Details" doc:id="3186753c-c4d4-422c-acdc-925a8a200e8f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Product: payload.productTitle,
+	Quantity: payload.quantity as Number,
+	Nearest_Seller_location: payload.location
+}
+]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="productDetails" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Product_Title": payload.productTitle ,
+	"Warranty" : payload.warranty,
+	"Quantity" : vars.quantity as Number,
+	"Price": payload.price as Number,
+}]]></ee:set-variable>
+				<ee:set-variable variableName="localQuantity" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.quantity as Number]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="payload" doc:id="254b3f4e-036f-4f0d-a98f-bbea0c701aea" message="#[payload]" />
+		<choice doc:name="Checking Product Availble in the nearest warehouse or not" doc:id="ec773f92-c8ce-4691-af32-95605cf5ae34" >
+			<when expression="#[vars.localQuantity &gt;= vars.quantity]">
+				<http:request method="PUT" doc:name="Update Product Quantity in LocalWarehouse" doc:id="92a286f7-5fce-4d59-bff7-1f85e85fa0da" config-ref="HTTP_Request_configuration_sys_cp_loc" path="${secure::loc.endpoints.products}/{location}" >
+					<http:body ><![CDATA[#[output application/json
+---
+{
+	quantity: (vars.localQuantity - vars.quantity)
+	
+}]]]></http:body>
+					<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::loc.client_id'),
+	client_secret : p('secure::loc.client_secret')
+
+}]]]></http:headers>
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	location: vars.Nearest_Warehouse_locations.Nearest_location
+}]]]></http:uri-params>
+					<http:query-params ><![CDATA[#[output application/java
+---
+{
+	productTitle: vars.productTitle
+}]]]></http:query-params>
+				</http:request>
+				<http:request method="PUT" doc:name="Update product Quantity in salesforce" doc:id="838d2a73-c52f-4ff8-bcd3-d2dcdb34219c" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="${secure::sfdc.endpoints.products}" >
+					<http:body ><![CDATA[#[output application/json
+---
+{
+	quantity: (vars.localQuantity - vars.quantity)
+	
+}]]]></http:body>
+					<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+					<http:query-params ><![CDATA[#[output application/java
+---
+{
+	productTitle: vars.productTitle,
+	location: vars.Nearest_Warehouse_locations.Nearest_location
+}]]]></http:query-params>
+				</http:request>
+				<ee:transform doc:name="Purchase Response" doc:id="35423109-db9a-4975-82e8-b4fa061b108e">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var deliveryPrice = 100
+---
+vars.productDetails default {} ++ 
+{
+	"Delivery_Charge": deliveryPrice,
+	"Total_Price": ((vars.productDetails.Price default 0 as Number ) * vars.quantity) + deliveryPrice,
+	"Shipping_Warehouse_Location": vars.Nearest_Warehouse_locations.Nearest_location,
+	"Add_to_cart_Date":(now() as String {format: "y-MM-dd"}),
+	"Expected_Delivery": "2-Days",
+	"Nearest_Db_Location": vars.Nearest_Warehouse_locations.Nearest_location
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			
+
+</when>
+			<otherwise>
+				<ee:transform doc:name="Setting collection payload accoding to the Nearest Warehouses" doc:id="f524190f-b8fa-4f21-a9ba-7892b8c389b9">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+[ vars.Nearest_Warehouse_locations.Second_Nearest_location , vars.Nearest_Warehouse_locations.Third_Nearest_location,
+	vars.Nearest_Warehouse_locations.Fourth_Nearest_location
+]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<set-variable value='#[""]' doc:name="seller_location" doc:id="1b29c442-890d-4f8d-b44d-34075297a8fd" variableName="seller_location"/>
+				<set-variable value='#[0]' doc:name="iteration_no" doc:id="65b9cad3-54da-4c21-b99b-c90091f3ca6a" variableName="iteration_no"/>
+								<try doc:name="Try" doc:id="e4a2d25b-2357-42c9-b6b0-39f1048570ff" >
+					<http:request method="GET" doc:name="Fetch Product Details from Salesforce" doc:id="0487d2c8-ddb7-442c-b07c-2e8736eb63ac" target="productDeatailsResponse" path="${secure::sfdc.endpoints.products}" config-ref="HTTP_Request_configuration_sys_cp_sfdc">
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle : vars.productTitle
+}]]]></http:query-params>
+					<http:response-validator>
+						<http:success-status-code-validator values="200" />
+					</http:response-validator>
+				</http:request>
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="6e6384ac-58d6-4ee9-bc7e-79cdd6724398" type="ANY">
+							<ee:transform doc:name="Error Message" doc:id="5b9da395-59ea-415a-8f33-a3f46f3341bf">
+								<ee:message>
+									<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+								</ee:message>
+								<ee:variables >
+									<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+								</ee:variables>
+							
+</ee:transform>
+							<logger level="ERROR" doc:name="Logging Error" doc:id="ff80ddca-8bd5-43ef-a8ad-04d1b047a894" message="#[payload]" />
+						</on-error-propagate>
+					
+</error-handler>
+				</try>
+				<foreach doc:name="Checking the Product Present in which nearest warehouse" doc:id="ba5eab24-78bc-4e7f-af46-85df82e86956" collection="#[payload]">
+					<set-variable value='#[vars.counter]' doc:name="iteration_no" doc:id="863fc80a-0d33-4889-a62b-fbfab20e515f" variableName="iteration_no" />
+					<set-variable value='#[payload]' doc:name="seller_location" doc:id="457fdcd7-ff5c-4250-885e-28ca238a3e2b" variableName="seller_location" />
+					<ee:transform doc:name="Transforming Product Details get from Salesforce" doc:id="a2c3171f-aeb9-434b-a67f-41b6b735ea1c" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.productDeatailsResponse filter ($.location == payload) ]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+						</ee:variables>
+					
+</ee:transform>
+					<set-variable value="#[payload[0].quantity as Number]" doc:name="localQuantity" doc:id="3d0a727a-60f9-4c4b-82cf-7fa50af1308d" variableName="localQuantity"/>
+					<logger level="INFO" doc:name="payload" doc:id="e72a337d-8344-4f59-a977-65d8c4c77464" message="#[payload]"/>
+					<choice doc:name="Check Product available?" doc:id="0572a26f-45a3-4181-9d43-e05f4f21cdf1">
+						<when expression="#[(payload[0].quantity as Number) &gt;= vars.quantity]">
+							<raise-error doc:name="Product Found" doc:id="6a0d5b17-4719-48fe-b1af-8f258073a079" type="ERR:PRODUCT_AVAILABLE" description="Product Available"/>
+						</when>
+						<otherwise >
+							<logger level="INFO" doc:name="Continue to check in the next warehouse" doc:id="c37eba2d-4e20-41ac-9ee2-f4029bf69125" message="Product is not Present in the  #[payload[0].location] Warehouse"/>
+						</otherwise>
+					</choice>
+				</foreach>
+				<try doc:name="Try" doc:id="fe8aa09f-61e7-46b0-b929-39e43cc7724e" >
+					<http:request method="POST" doc:name="Add the data in Enquiry" doc:id="84bf25c9-1a4b-4828-9080-b6067a3323fd" path="${secure::sfdc.endpoints.enquiry}" config-ref="HTTP_Request_configuration_sys_cp_sfdc">
+					<http:body><![CDATA[#[output application/json
+---
+{
+  "emailId": vars.email,
+  "productTitle": vars.productTitle,
+  "quantity": vars.quantity
+}]]]></http:body>
+						<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+						<http:response-validator >
+							<http:success-status-code-validator values="201"/>
+						</http:response-validator>
+				</http:request>
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="9d25e4f3-98ba-4047-8ed9-446a459eca4e" >
+							<ee:transform doc:name="Error Message" doc:id="d8544f63-2c34-4356-8141-d3249cccc7e0" >
+								<ee:message >
+									<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+								</ee:message>
+								<ee:variables >
+									<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+								</ee:variables>
+							</ee:transform>
+							<logger level="ERROR" doc:name="Logging Error" doc:id="85777577-f1a2-4c52-8930-787905565a8b" message="#[payload]" />
+						
+</on-error-propagate>
+					</error-handler>
+				</try>
+				<ee:transform doc:name="Enquiry Response" doc:id="609815ef-e363-4453-a2a4-aa1752709326">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : ("Product " ++ vars.productTitle as String ++ " is Currently Unavailable , We will notify you when it will available.")
+}
+]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+			
+
+</otherwise>
+		
+</choice>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="d60f163e-f1a3-4b86-8253-1831f07ca870" type="ERR:PRODUCT_AVAILABLE">
+				<http:request method="PUT" doc:name="Update Product Quantity in LocalWarehouse" doc:id="b4d9244e-5efd-464b-9223-666f587d944f" config-ref="HTTP_Request_configuration_sys_cp_loc" path="${secure::loc.endpoints.products}/{location}">
+					<http:body><![CDATA[#[output application/json
+---
+{
+	quantity: (vars.localQuantity - vars.quantity)
+	
+}]]]></http:body>
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::loc.client_id'),
+	client_secret : p('secure::loc.client_secret')
+
+}]]]></http:headers>
+					<http:uri-params><![CDATA[#[output application/java
+---
+{
+	location: vars.seller_location
+}]]]></http:uri-params>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle: vars.productTitle
+}]]]></http:query-params>
+				</http:request>
+				<http:request method="PUT" doc:name="Update product Quantity in salesforce" doc:id="a73c0aa9-49b9-4544-92ab-b03ef492a0ce" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="${secure::sfdc.endpoints.products}">
+					<http:body><![CDATA[#[output application/json
+---
+{
+	quantity: (vars.localQuantity - vars.quantity)
+	
+}]]]></http:body>
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle: vars.productTitle,
+	location: vars.seller_location
+}]]]></http:query-params>
+				</http:request>
+				<ee:transform doc:name="Purchase Response" doc:id="bbbd3266-aee0-4dbc-bd28-8ad8eb9137d4" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var del_price = if ( vars.iteration_no == 1 ) (250) else if ( vars.iteration_no == 2 ) (350)else 500
+var del_date = if ( vars.iteration_no == 1 ) ("3-Days") else if ( vars.iteration_no == 2 ) (("4-Days"))else ("6-Days")
+---
+vars.productDetails default {} ++
+{
+	"Delivery_Charge": del_price,
+	"Total_Price": ((vars.productDetails.Price default 0 as Number) * vars.quantity as Number) + del_price,
+	"Shipping_Warehouse_Location": vars.seller_location,
+	"Add_to_cart_Date": (now() as String {format: "y-MM-dd"}),
+	"Expected_Delivery": del_date,
+	"Nearest_Db_Location": vars.Nearest_Warehouse_locations.Nearest_location
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			
+</on-error-continue>
+		</error-handler>
+	</flow>
+
+</mule>

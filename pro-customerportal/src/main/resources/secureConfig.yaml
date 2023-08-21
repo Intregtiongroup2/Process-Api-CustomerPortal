@@ -1,0 +1,38 @@
+sfdc:
+  host: "![eMcCv9zWN2K3S6bh5gijdV1wjLqzhqKNRYhYxtC/Z20=]"
+  protocol: "![IMgZ5Gx+3EaQqSOfM6c/ww==]"
+  timeout: "![qKgQtgo2iuGSj/kSpGT6ng==]"
+  bufferSize: "![4lZZVwSRhGrpE6ck405pRw==]"
+  client_id: "![vDLcNsu0n4mY6y9iy85l5GwU1Y/aliwz+0BfJEMnt8gWvXqcfY/sRjkPbrznR4hL]"
+  client_secret: "![T2iWM0prBypamH9NQT10e2ifetQz/2bcb8qmFlTSnqXVVKw84HQ1IaLprsOpImy/]"
+  endpoints:
+    products: "![i3VCjW5RKSdPJe3KTNds4A==]"
+    customers: "![1TfvsI0vDIjGdpoEd1Q76Q==]"
+    orderDetails: "![k6to7j+NOlGdYeNXfcgPug==]"
+    complaint: "![XxDVZOkukQFIEaYy2THqvg==]"
+    enquiry: "![5Zv1f3+7xBjeMvIyz4mTrQ==]"
+    cart: "![fOJTbjjZQqmKV9P3X68MCw==]"
+    ping: "![xOexIv61Ry2Dts+fNsXvXQ==]"
+  
+loc:
+  host: "![nrLAfmwzIuatyk98LrjetCXLoijd+h7L2PczhIPsSmY=]"
+  protocol: "![IMgZ5Gx+3EaQqSOfM6c/ww==]"
+  timeout: "![Aq+pSSkA8ytcO9ulkSdJug==]"
+  bufferSize: "![4lZZVwSRhGrpE6ck405pRw==]"
+  client_id: "![OEbpLhC9+wmlm1Nayz3+q1WLvyPRhqvDGRf8Nc3CLuzPYTOWLRCEtLYM74wDggUA]"
+  client_secret: "![g0z6tc9fsjojr+B015kdei1o/oveloZU3VXKodY07lytG9aHGhIjfxPkpIDporb0]"
+  endpoints:
+    products: "![i3VCjW5RKSdPJe3KTNds4A==]"
+    customers: "![1TfvsI0vDIjGdpoEd1Q76Q==]"
+    ping: "![xOexIv61Ry2Dts+fNsXvXQ==]"
+  
+tls:
+  keypass: "![/XsR0czN/d1IcT4ItU+IRA==]"
+  pass: "![/XsR0czN/d1IcT4ItU+IRA==]"
+  
+smtp:
+  host: "![KQyRNqkoejEubI1oBZGOsg==]"
+  port: "![hLbq/jPPvwq0teqmPZC8Yw==]"
+  username: "![d8GRB3DgydOnztClv3XU2+mXDNrYA61/QKFmQtauEE0MRRZ90b1U+5uRMUwz2wDu]"
+  password: "![bfB8KYKQX/O4lq4uvzSd5wO4u8Im+vPw+FWGwI2W4cM=]"
+  

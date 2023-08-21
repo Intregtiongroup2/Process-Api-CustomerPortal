@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="17484679-865e-442b-9602-ba5b759039de" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="muleprojectgroupexavalu@gmail.com" password="zvsowbqvmclvmdvl" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<flow name="enquiry_EmailFlow" doc:id="72a4876a-3c18-4f9d-98ea-e0d056c2cfda" >
+		<scheduler doc:name="Scheduler" doc:id="f22e20f3-c3f1-4284-ad45-b4358505a641" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="2" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="84d0e7aa-f745-44b0-b840-6487b133e215" collection='#[["REALME-NARZO-N55-6GB-64GB","REDMI-NOTE-10S-4GB-64GB","REDMI-PRO-11-6GB-128GB","SAMSUNG-A2-4GB-64GB","SAMSUNG-GALAXY-6GB-128GB"]]'>
+<set-variable value="#[payload]" doc:name="productTitle" doc:id="636e2be6-ecf4-4c11-b3fd-7fb622b07f9e" variableName="productTitle" />
+			<http:request method="GET" doc:name="Fetch All Enquires" doc:id="933897aa-365d-4d70-a1e3-f5b42cb4ecb3" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="enquiry" target="enquiryDetails">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle: payload
+	
+}]]]></http:query-params>
+		</http:request>
+			<http:request method="GET" doc:name="Fetch Product Quantity Details " doc:id="93f3a84f-b019-4aca-8c1c-5b6647a5e614" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="products" target="productDetails">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle: payload
+	
+}]]]></http:query-params>
+		</http:request>
+			<parallel-foreach doc:name="List of customer Email" doc:id="2058fece-10a2-4fc8-b40a-ccb2e3683038" collection="#[vars.enquiryDetails.emailId]">
+			<choice doc:name="Check Product Available ?" doc:id="a3b86284-2060-407f-897a-60615a8a8997">
+				<when expression="#[((vars.enquiryDetails filter ($.emailId == payload ))[0].quantity) &lt;=  (max(vars.productDetails.quantity))]">
+					<logger level="INFO" doc:name="Available" doc:id="4cab3129-1b31-4dfc-982a-27b2eb263b44" message="Available ProductName #[vars.productTitle] for Customer #[payload]" />
+						<set-variable value='#[output application/java&#10;---&#10;{&#10;	"subject": "Product Available",&#10;	"body": "&lt;h4&gt;Hello Customer ,&lt;/h4&gt; &lt;br&gt; Sorry for your inconvenience, now Product &lt;b&gt;" ++ vars.productTitle as String ++"&lt;/b&gt; is available.&lt;br&gt;&lt;br&gt;Thank you for shopping with us! &lt;br&gt;&lt;br&gt;Regards,&lt;br&gt;The customerPortal Team"&#10;}]' doc:name="email" doc:id="508ef570-c5d8-44f9-86de-1362f4df4576" variableName="email"/>
+						<email:send doc:name="Send Email" doc:id="e563d88b-f9af-4a2c-ae22-57eee3737f86" config-ref="Email_Connector" fromAddress="muleprojectgroupexavalu@gmail.com" subject="#[vars.email.subject]">
+						<email:to-addresses>
+							<email:to-address value="#[payload]" />
+						</email:to-addresses>
+						<email:body contentType="text/html">
+								<email:content><![CDATA[#[vars.email.body]]]></email:content>
+						</email:body>
+					</email:send>
+						<logger level="INFO" doc:name="Successfully Email Sent" doc:id="d03036d9-daff-4392-b854-3e86607ffecd" message='#["Successfully Message Sent to: " ++ payload]' />
+						<http:request method="DELETE" doc:name="Delete the Record" doc:id="e62b3ed5-0dfa-45ba-9734-fd76606a85b9" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="enquiry" target="enquiryDetails">
+							<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+							<http:query-params><![CDATA[#[output application/java
+---
+{
+	enquiryId: ((vars.enquiryDetails filter ($.emailId == payload ))[0].enquiryId)
+	
+}]]]></http:query-params>
+						</http:request>
+						<logger level="INFO" doc:name="Logger" doc:id="1aa0bab1-baa3-4cf3-b238-a6274c7f551f" message="Record Deleted Succesfully"/>
+				
+</when>
+				<otherwise>
+					<logger level="INFO" doc:name="Not Available " doc:id="26938a8b-a126-4d57-8780-094cb829fefe" message="Not Available ProductName #[vars.productTitle] for customer #[payload] " />
+				</otherwise>
+			</choice>
+		</parallel-foreach>
+		</parallel-foreach>
+		<logger level="INFO" doc:name="Logger" doc:id="61c48511-296a-42fc-91b5-dd64c792b6c2" message="continue..."/>
+		<error-handler>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="5adfcca1-c5b6-4fd1-99a3-411f8e1729ef" >
+				<logger level="INFO" doc:name="Logger" doc:id="2d51c615-0a27-4f28-96d9-3b109e99ffc3" message="Continue...."/>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+</mule>

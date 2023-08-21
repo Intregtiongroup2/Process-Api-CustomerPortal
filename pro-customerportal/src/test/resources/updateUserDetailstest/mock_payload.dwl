@@ -1,0 +1,3 @@
+{
+  "paymentIsValid": true
+}

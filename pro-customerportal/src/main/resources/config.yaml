@@ -1,0 +1,24 @@
+https:
+  port: "8082"
+  readTimeout: "30000"
+tls:
+  keyStoreType: "JKS"
+  keyPath: "keystore.jks"
+  alias: "mule"
+base:
+  path: "/api"
+pro_customerPortal:
+  path: "/api/*"
+  
+ping:
+  apiName: "SAPI CustomerPortal Api "
+  projectVersion: "1.0.5"
+  apiVersion: "1.0.5"
+  env: "DEV"
+  server: "mule.server"
+  serviceType: "sys-cp-sfdc"
+  status: "200"
+  statusMessage: "Up"
+  message: "Alive"
+  x-dependent-ping: "true"
+  

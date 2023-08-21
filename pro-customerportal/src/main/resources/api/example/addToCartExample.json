@@ -1,0 +1,14 @@
+{
+    "email": "rishav@gmail.com",
+    "location": "Kolkata",
+    "products": [
+        {
+            "productTitle": "SAMSUNG-A2-4GB-64GB",
+            "quantity": 1
+        },
+        {
+            "productTitle": "REALME-NARZO-N55-6GB-64GB",
+            "quantity": 2
+        }
+    ]
+}

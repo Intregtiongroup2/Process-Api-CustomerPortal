@@ -1,0 +1,459 @@
+<!-- [STUDIO:"Scheduler"]<?xml version="1.0" encoding="UTF-8"?> [STUDIO] -->
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<flow name="cartUpdateFlow" doc:id="3ce9abfa-f3aa-4725-b8a2-56d1bd06991f" >
+		<scheduler doc:name="Check Carts table after a fixed interval" doc:id="6e140a5f-e7ce-499c-a80e-dac94d8282f3" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1000000" timeUnit="SECONDS" startDelay="5"/>
+			</scheduling-strategy>
+		</scheduler>
+		<http:request method="GET" doc:name="Get all cart Details" doc:id="76ba20a0-8782-4172-981c-5b99ec788ba8" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="cart">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+		</http:request>
+		<ee:transform doc:name="Removing Blank Carts" doc:id="8c63f9be-8990-4e4c-b8a9-95f09b2dd243" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload filter $.Total_Amount>0]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="47a45a36-5c17-4df6-b733-3c28aa90c1bd" collection="#[payload]">
+			<ee:transform doc:name="Filtering the cart Items" doc:id="c2e00413-01eb-4101-9e9d-de252510811b" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload.Items filterObject ((value, key, index) -> value.Add_to_cart_Date >=(now() as String {format:"y-MM-dd"} - |P3D|))]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="externalId" ><![CDATA[%dw 2.0
+output application/java
+---
+if(!isEmpty(payload.customerId))
+{
+	"id": "customerId__c",
+	"customerId__c": payload.customerId
+}
+else{
+    "id": "customerEmail__c",
+	"customerEmail__c": payload.customerEmail
+}]]></ee:set-variable>
+					<ee:set-variable variableName="oldItems" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.Items filterObject ((value, key, index) -> value.Add_to_cart_Date <(now() as String {format:"y-MM-dd"} - |P3D|))]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<vm:publish queueName="modifyProduct" doc:id="e912e8c9-f2ed-4005-bc2a-c9c9b29e081a" config-ref="VM_Config" doc:name="Publish the unbooked products ">
+					<vm:content><![CDATA[#[vars.oldItems]]]></vm:content>
+				</vm:publish>
+			<ee:transform doc:name="Modified Cart Details" doc:id="941cb3aa-522e-4f39-bf5d-ce7ce7367b79" >
+				<ee:message />
+				<ee:variables >
+					<ee:set-variable variableName="items" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  (payload pluck ((value, key, index) -> (index+1):value))
+}
+]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="Modified Payload" doc:id="0fdb4017-0a0b-4cb1-9951-932c9ad261ee" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Items" : vars.Items,
+	"Total_Amount": sum(vars.Items pluck ((value, key, index) -> value.Total_Price))
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<http:request method="PUT" doc:name="Modify the Cart" doc:id="ede86aac-5d4f-44b0-a800-b1c712863f0f" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="cart" >
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+				<http:query-params ><![CDATA[#[if(vars.externalId.id == "customerId__c")
+{
+	"customerId": vars.externalId.customerId__c 
+}
+else{
+	"emailId": vars.externalId.customerEmail__c
+}]]]></http:query-params>
+			</http:request>
+		</parallel-foreach>
+	</flow>
+	<flow name="productQuantityUpdate" doc:id="77c763c2-c199-49a5-89f6-65dd976acbf5" >
+		<vm:listener queueName="modifyProduct" doc:name="Listener" doc:id="a49782e3-d272-4bd8-a8c0-4d84d8583dc6" config-ref="VM_Config"/>
+		<choice doc:name="Produt availble for update ?" doc:id="6667d498-d1e5-40b6-8208-38f3b71057fe" >
+			<when expression="#[sizeOf(payload)&gt;0]">
+				<parallel-foreach doc:name="Parallel For Each" doc:id="5f0c7362-d41b-4808-aa0e-841b47b8dbfc" collection="#[payload]" maxConcurrency="4">
+			<http:request method="GET" doc:name="Get The product quantity" doc:id="b2bedb1c-887a-449e-9eae-b22e9cc3f283" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="products" target="quantity">
+				<http:headers><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+				<http:query-params><![CDATA[#["productTitle": (payload pluck $.Product_Title)[0] as String]]]></http:query-params>
+			</http:request>
+			<ee:transform doc:name="Transform the Response" doc:id="f7126a3f-6ba3-4e57-a853-f0f85d597692" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"quantity":  (vars.quantity filter ((item, index) -> item.location == (payload pluck $.Shipping_Warehouse_Location)[0])).quantity[0]
+	as Number + (payload pluck $.Quantity)[0]
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="location" ><![CDATA[(payload pluck $.Shipping_Warehouse_Location)[0] as String
+]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<http:request method="PUT" doc:name="Unbook the product quantity in SFDC" doc:id="8837120f-3be4-4af2-8873-d572aa7cad35" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="products" target="response">
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+						<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle : vars.quantity.productTitle[0] as String,
+	location : vars.location
+}]]]></http:query-params>
+			</http:request>
+					<http:request method="PUT" doc:name="Unbook the product quantity in local" doc:id="e2545f69-190c-4e15-b7be-fc68cf404aa6" config-ref="HTTP_Request_configuration_sys_cp_loc" path="products/{location}">
+						<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::loc.client_id'),
+	"client_secret": p('secure::loc.client_secret')
+}]]]></http:headers>
+						<http:uri-params ><![CDATA[#[output application/json
+---
+{
+	location : vars.location
+}]]]></http:uri-params>
+						<http:query-params ><![CDATA[#[output application/java
+---
+{
+	productTitle : vars.quantity.productTitle[0],
+	location : vars.location
+}]]]></http:query-params>
+					</http:request>
+					<logger level="INFO" doc:name="Logger" doc:id="f240697d-cb09-4ca9-9262-71fd91f4f885" message="#[payload]"/>
+		
+
+</parallel-foreach>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="ef62622e-e4da-43cf-90a7-c6066348cda7" message="#[payload]"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="asyncUpdateFlow" doc:id="f178249b-3e61-4d10-a131-ea4758554b2b" >
+		<scheduler doc:name="Scheduler" doc:id="a074a140-a6ad-47e5-aff2-0d156a3fa3bd" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="5" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<try doc:name="Try" doc:id="21eee96e-66d0-4c17-ad7b-db5c63fbe9b8" >
+			<vm:consume doc:name="Consume" doc:id="c567937a-2ac3-43cf-8798-c48044531c6f" config-ref="VM_Config" queueName="asyncCustomerDetails" />
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="63793803-3b50-401c-a8b3-d5542f8ce1fc" >
+					<ee:transform doc:name="Error Message" doc:id="c90e9e6a-f47b-4ac7-8ee0-e2b5c66f5fa8" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Empty Queue"
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<choice doc:name="Choice" doc:id="3101139d-fd8c-4fe9-af45-993ecc12c017" >
+			<when expression="#[isEmpty(payload.newUser) and isEmpty(payload.message)]">
+				<http:request method="GET" doc:name="Request" doc:id="521eb0b0-093f-4597-bb6d-cc4aa503ce68" config-ref="HTTP_Request_configuration_sys_cp_loc" path="customers/{location}" target="customerDetails">
+					<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::loc.client_id'),
+	"client_secret": p('secure::loc.client_secret')
+}]]]></http:headers>
+					<http:uri-params ><![CDATA[#[%dw 2.0
+import * from dw::core::Strings 
+output application/json
+---
+if(substring(payload.customerId,0,3) == "KOL"){
+	location: "Kolkata"
+}
+else if(substring(payload.customerId,0,3) == "HYD")
+{
+	location: "Hyderabad"
+}
+else if(substring(payload.customerId,0,3) == "BLR")
+{
+	location: "Bangalore"
+}
+else{
+	location: "Mumbai"
+}]]]></http:uri-params>
+					<http:query-params ><![CDATA[#[{
+	customerId: payload.customerId
+}]]]></http:query-params>
+				</http:request>
+				<ee:transform doc:name="existing User update" doc:id="15e46cf2-8600-4d0e-946b-58102f40c358" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var idx = sizeOf(vars.customerDetails.savedCards) as Number
+---
+{
+	(pincode: payload.pincode) if(!isEmpty(payload.pincode)) ,
+	(address: payload.address) if(!isEmpty(payload.address)),
+	(phoneNumber: payload.phoneNumber) if(!isEmpty(payload.phoneNumber)),
+	("cardDetails": (vars.customerDetails.savedCards default {} )) if(!isEmpty(payload.cardDetails))
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="customerId" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.customerId]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<try doc:name="Try" doc:id="89cf04d9-4af1-43a3-9276-cc1201966b6b" >
+					<http:request method="PUT" doc:name="Request" doc:id="19df0aab-f650-4105-8fe6-5a8d18e6ecbd" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="customers">
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	customerId : vars.customerId
+}]]]></http:query-params>
+				</http:request>
+					<error-handler >
+						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="a707334c-032b-4f47-bee3-6f531d540a14" >
+							<vm:publish queueName="asyncCustomerDetails" doc:name="Publish" doc:id="6cb4e6f2-18ba-44ef-aefb-6ce5d21cb28b" config-ref="VM_Config" >
+								<vm:content ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	(pincode: payload.pincode) if(!isEmpty(payload.pincode)) ,
+	(address: payload.address) if(!isEmpty(payload.address)),
+	(phoneNumber: payload.phoneNumber) if(!isEmpty(payload.phoneNumber)),
+	(cardDetails: payload.cardDetails) if(!isEmpty(payload.cardDetails)),
+	customerId: vars.customerId
+}]]]></vm:content>
+							</vm:publish>
+						</on-error-continue>
+					</error-handler>
+				</try>
+			</when>
+			<when expression="#[!isEmpty(payload.newUser)]">
+				<ee:transform doc:name="New User Details" doc:id="6de8eb06-2e0e-4ea7-b104-05b0a487e3e7" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "customerId": payload.customerId,
+    "emailId": payload.emailId,
+    "firstName": payload.firstName,
+    "lastName": payload.lastName,
+    "gender": payload.gender,
+    "pincode": payload.pincode,
+    "address": payload.address,
+    "phoneNumber": payload.phoneNumber,
+    "location": payload.location,
+    ("cardDetails": payload.cardDetails) if(!isEmpty(payload.cardDetails)),
+    ("cardDetails": {}) if(isEmpty(payload.cardDetails))
+    
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<try doc:name="Try" doc:id="31d2a6ed-f96f-4ed2-a75c-f3cd94b40048" >
+					<http:request method="POST" doc:name="Add user details to Salesforce" doc:id="529c425a-4fad-4c71-90f7-042ec08a30d2" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="customers">
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+				</http:request>
+					<error-handler >
+						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="6bd79858-11fc-4e8b-bfad-e1ed636a61b6" >
+							<vm:publish doc:name="Publish" doc:id="8036a6f4-91e0-4e10-88eb-6ca857eefc4b" config-ref="VM_Config" queueName="asyncCustomerDetails">
+								<vm:content ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	"emailId": payload.emailId,
+	"firstName": payload.firstName,
+	"lastName": payload.lastName,
+	"gender": payload.gender,
+	"pincode": payload.pincode,
+	"address": payload.address,
+	"phoneNumber": payload.phoneNumber,
+	"customerId": payload.customerId,
+	("cardDetails": payload.cardDetails) if(!isEmpty(payload.cardDetails)),
+	"newUser": true
+}]]]></vm:content>
+							</vm:publish>
+						</on-error-continue>
+					</error-handler>
+				</try>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Empty No updates" doc:id="f8c79154-6716-48a0-aed5-cce8ad1839ee" message="#[payload]"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="notifyUserFlow" doc:id="11f16001-83af-4112-88f3-f530eeabc3a6" >
+		<scheduler doc:name="Scheduler" doc:id="379d6516-0d3e-4e4b-ba6e-e2221f35e5cb" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="10000" timeUnit="SECONDS" />
+			</scheduling-strategy>
+		</scheduler>
+		<http:request method="GET" doc:name="Get all cart Details" doc:id="69b7090c-dfac-4175-adcd-3f39d08a98a9" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="cart" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+		</http:request>
+		<ee:transform doc:name="Removing Blank Carts" doc:id="40becbb6-109e-44c8-82de-b167f3668daf" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload filter $.Total_Amount>0]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="6caaa233-f358-414e-ae27-850831631614" collection="#[payload]" >
+			<ee:transform doc:name="Filtering the cart Items" doc:id="e1d44e6c-1d0b-4a07-9bad-98e20bd79037">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="externalId"><![CDATA[%dw 2.0
+output application/java
+---
+if(!isEmpty(payload.customerId))
+{
+	"id": "customerId__c",
+	"customerId__c": payload.customerId
+}
+else{
+    "id": "customerEmail__c",
+	"customerEmail__c": payload.customerEmail
+}]]></ee:set-variable>
+					<ee:set-variable variableName="oldItems"><![CDATA[%dw 2.0
+output application/json
+---
+payload.Items filterObject ((value, key, index) -> value.Add_to_cart_Date <(now() as String {format:"y-MM-dd"} - |P3D|))]]></ee:set-variable>
+					<ee:set-variable variableName="items"><![CDATA[%dw 2.0
+output application/json
+---
+payload.Items filterObject ((value, key, index) -> value.Add_to_cart_Date ~=(now() as String {format:"y-MM-dd"} - |P2D|))]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<choice doc:name="Choice" doc:id="a93a2b3f-7813-465b-94e3-8ca2252a9586" >
+				<when expression="#[!isEmpty(payload.customerId)]">
+					<try doc:name="Try" doc:id="10357915-51f0-4984-b7d9-04de44d419cb" >
+						<http:request method="GET" doc:name="Fetch Customer  Details" doc:id="a2712949-027c-4376-a482-e29b74587d93" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="customers" target="emailId" targetValue="#[payload.emailId]">
+							<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+							<http:query-params ><![CDATA[#[output application/java
+---
+{
+	customerId : payload.customerId
+}]]]></http:query-params>
+						</http:request>
+						<error-handler >
+							<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7939c1d1-f01a-4115-b512-091caa6ac5f1" >
+								<ee:transform doc:name="Error Message" doc:id="153aefe6-84b7-4894-97fe-031ed1ad45cf" >
+									<ee:message >
+										<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+									</ee:message>
+									<ee:variables >
+										<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+									</ee:variables>
+								</ee:transform>
+							</on-error-propagate>
+						</error-handler>
+					</try>
+				</when>
+				<otherwise >
+					<ee:transform doc:name="New or guest User" doc:id="3d4667d3-a675-42f6-b931-9afe4f55d3a1" >
+						<ee:message >
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="emailId" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.customerEmail]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</otherwise>
+			</choice>
+			<choice doc:name="Choice" doc:id="d6d7324d-5a98-4d1a-9136-89ed74fd8143" >
+				<when expression="#[sizeOf(vars.items)&gt;0]">
+					<set-variable value='#[output application/java&#10;---&#10;{&#10;	"subject": "Time is running out!",&#10;	"body": "&lt;h4&gt;Hi Customer ,&lt;/h4&gt; &lt;br&gt;We noticed that you added some items &lt;b&gt;" ++ (vars.items..Product_Title joinBy "," as String) ++"&lt;/b&gt; to your cart on &lt;b&gt;"++ vars.items..Add_to_cart_Date[0] as String ++"&lt;/b&gt; but have yet to check out.&lt;br&gt;Time is running out now is your chance to complete your order in the next 24 hours — the clock is ticking and we can’t hold them for you any longer.The demand is simply too high.&lt;br&gt;We hope that you’re not having any problems with the checkout process.If any you can mail us regarding those problems.&lt;br&gt;&lt;br&gt;Thank you for shopping with us! &lt;br&gt;&lt;br&gt;Regards,&lt;br&gt;The customerPortal Team"}]' doc:name="email" doc:id="547342e7-4ff9-45a8-a089-d5e4f557ebb0" variableName="email" />
+					<email:send doc:name="Send Email" doc:id="3fb6c936-3bed-44ec-86c6-db71ca3bbf5f" config-ref="Email_Connector" fromAddress="muleprojectgroupexavalu@gmail.com" subject="#[vars.email.subject]" >
+						<email:to-addresses >
+							<email:to-address value="#[vars.emailId]" />
+						</email:to-addresses>
+						<email:body contentType="text/html" >
+							<email:content ><![CDATA[#[vars.email.body]]]></email:content>
+						</email:body>
+					</email:send>
+					<logger level="INFO" doc:name="Successfully Email Sent" doc:id="62b3de77-5416-4067-86fa-1d0b34e504ee" message='#["Successfully Message Sent to: " ++ vars.emailId]' />
+				</when>
+				<otherwise >
+					<logger level="INFO" doc:name="Logger" doc:id="3923c35d-c7f0-49f8-8d61-1c22decbb5cd" />
+				</otherwise>
+			</choice>
+		</parallel-foreach>
+	</flow>
+</mule>

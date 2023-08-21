@@ -1,0 +1,30 @@
+{
+  "headers": {
+    "client_id": "6594903a87af44d980d2421f5c3a24d8",
+    "client_secret": "6a39DAdba8514e1D9b48B75Da1D55Ae2",
+    "content-type": "application/json",
+    "user-agent": "PostmanRuntime/7.32.3",
+    "accept": "*/*",
+    "postman-token": "e5773344-e430-44f4-a26d-5bc17774db72",
+    "host": "localhost:8082",
+    "accept-encoding": "gzip, deflate, br",
+    "connection": "keep-alive",
+    "content-length": "81"
+  },
+  "clientCertificate": null,
+  "method": "PUT",
+  "scheme": "https",
+  "queryParams": {},
+  "requestUri": "/api/pro-modifyCart",
+  "queryString": "",
+  "version": "HTTP/1.1",
+  "maskedRequestPath": "/pro-modifyCart",
+  "listenerPath": "/api/*",
+  "relativePath": "/api/pro-modifyCart",
+  "localAddress": "/127.0.0.1:8082",
+  "uriParams": {},
+  "rawRequestUri": "/api/pro-modifyCart",
+  "rawRequestPath": "/api/pro-modifyCart",
+  "remoteAddress": "/127.0.0.1:58215",
+  "requestPath": "/api/pro-modifyCart"
+}

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="callingExternalApiToFindNearestWareHouseLocation" doc:id="3542a6f5-ab8e-499e-99bc-54434c58a00d" >
+		<parallel-foreach doc:name="Iterating Parallel for Kolkata, Bangalore, Mumbai , Hyderabad" doc:id="07a8fbe9-83e1-4b34-990e-60d93cfa2cab" collection='#[["Kolkata","Bangalore","Mumbai","Hyderabad"]]' >
+			<set-variable value="#[payload]" doc:name="warehouseLocation" doc:id="c647f2e9-5a7c-4a63-b42a-a1c67d0b5271" variableName="warehouseLocation" />
+			<ee:transform doc:name="External Api Link" doc:id="51992b15-2aff-423f-8ef9-d6e64473986c" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	customer_location: vars.location,
+	warehouse_location: vars.warehouseLocation
+	
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="link" ><![CDATA[%dw 2.0
+output application/json
+---
+"https://www.distancefromto.net/distance-from-" ++ vars.location as String ++ "-in-to-" ++ vars.warehouseLocation as String ++ "-in"]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<try doc:name="Try" doc:id="9193ae5d-9a67-4cd8-8a60-339a169a7ea5" >
+				<http:request method="GET" doc:name="Request to Distance API" doc:id="be5c02fc-b260-4c3f-b8cb-68de128d52bd" url="#[vars.link]" />
+				<error-handler >
+					<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="121ccb2d-aa00-49ba-b16e-c7d9059b900e" type="ANY" >
+						<ee:transform doc:name="Error Response" doc:id="37c80245-e13e-4268-b44b-69b0536dc5dc" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: error.detailedDescription
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="ERROR" doc:name="Logging Error" doc:id="ca64d540-6382-4bd0-a253-5d0e258e7c32" message="#[payload]" />
+					</on-error-propagate>
+				</error-handler>
+			</try>
+			<ee:transform doc:name="HTML to TEXT" doc:id="bfba2f1e-869a-4c5d-a465-bddfb828edde" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output text/plain
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<ee:transform doc:name="Extracting Distance" doc:id="3ee7028c-fcc6-4392-85c8-019179145ace" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+import * from dw::core::Strings
+output application/json
+
+---
+(substringAfter  (substringBefore(substringAfter (payload as String,"distance between")," k") ,"is ") remove ",") as Number
+
+]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		</parallel-foreach>
+		<ee:transform doc:name="Distance Array" doc:id="0ab07895-b45e-48d6-bd41-a8b6dc64a3f4" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload..payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Response" doc:id="e8833cd4-7a5d-44ae-a882-9596000e112c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var min_distance = min(payload)
+var second_min_diatance = min(payload -min(payload)) 
+var third_min_distance = min(payload-min(payload-min(payload))-min(payload))
+var fourth_min_distance = max(payload)
+---
+{
+	Distances: payload,
+	
+	Minimum_distance: min_distance,
+	
+	Second_Minimum_distance: second_min_diatance,
+	
+	Third_Minimum_distance: third_min_distance,
+	
+	Fourth_Minimum_distance: fourth_min_distance,
+	
+    (Nearest_location: "Kolkata") if( indexOf(payload ,min_distance)==0),
+    (Nearest_location: "Bangalore") if( indexOf(payload ,min_distance)==1),
+    (Nearest_location: "Mumbai") if( indexOf(payload ,min_distance)==2),
+    (Nearest_location: "Hyderabad") if( indexOf(payload ,min_distance)==3),
+    
+    (Second_Nearest_location: "Kolkata") if( indexOf(payload ,second_min_diatance)==0),
+    (Second_Nearest_location: "Bangalore") if( indexOf(payload ,second_min_diatance)==1),
+    (Second_Nearest_location: "Mumbai") if( indexOf(payload ,second_min_diatance)==2),
+    (Second_Nearest_location: "Hyderabad") if( indexOf(payload ,second_min_diatance)==3),
+    
+    (Third_Nearest_location: "Kolkata") if( indexOf(payload ,third_min_distance)==0),
+    (Third_Nearest_location: "Bangalore") if( indexOf(payload ,third_min_distance)==1),
+    (Third_Nearest_location: "Mumbai") if( indexOf(payload ,third_min_distance)==2),
+    (Third_Nearest_location: "Hyderabad") if( indexOf(payload ,third_min_distance)==3),
+    
+    (Fourth_Nearest_location: "Kolkata") if( indexOf(payload ,fourth_min_distance)==0),
+    (Fourth_Nearest_location: "Bangalore") if( indexOf(payload ,fourth_min_distance)==1),
+    (Fourth_Nearest_location: "Mumbai") if( indexOf(payload ,fourth_min_distance)==2),
+    (Fourth_Nearest_location: "Hyderabad") if( indexOf(payload ,fourth_min_distance)==3)
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="ed379307-9542-44f9-9f72-780dc443842e" >
+				<ee:transform doc:name="Error Response" doc:id="73c6f3b3-bb08-4513-8507-32b3c2a490f9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Location is not correct"
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<logger level="ERROR" doc:name="Logging Error" doc:id="c5180b36-3c3b-417c-8c50-17ec194030d3" message="#[payload]" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

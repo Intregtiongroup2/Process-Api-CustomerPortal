@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="orderdeliveredFlow" doc:id="7d210b5e-7323-48d9-bf92-2fbb9d52d7b5" >
+		<ee:transform doc:name="OrderDetails to Update" doc:id="d5210b72-1c59-4f14-8d10-3867cd8ba6a9" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="VorderId" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"orderId": attributes.queryParams.orderId
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<try doc:name="Try" doc:id="c5a80b94-1675-45fd-8e3a-27f3fdac2d04" >
+			<http:request method="GET" doc:name="Retrieve order Details from sfdc" doc:id="e416a876-195a-4676-82d5-069c4ee501ea" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="orderDetails">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"client_secret" : p('secure::sfdc.client_secret'),
+	"client_id" : p('secure::sfdc.client_id')
+}]]]></http:headers>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	orderId : vars.VorderId.orderId
+}]]]></http:query-params>
+		</http:request>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="a3f0c584-d959-4c16-9f09-d459978c1772" >
+					<ee:transform doc:name="error response" doc:id="df09914c-0f09-4dec-be1f-812bee42680b" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[
+error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+						</ee:variables>
+					
+</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<choice doc:name="Choice" doc:id="385a7759-dee6-4cc6-813d-9bf07363148f" >
+			<when expression='#[payload.Status == "Delivered"]'>
+				<raise-error doc:name="Raise error" doc:id="47ccc2ab-b620-4254-92b1-67cf90d832ad" type="ERR:ALREADY_DELIVERED" description="Product is already delivererd"/>
+			</when>
+			<when expression='#[payload.Status == "Cancelled"]'>
+				<raise-error doc:name="Raise error" doc:id="221edaaf-df2d-404e-b68b-e6c953a6e878" type="ERR:ALREADY_CANCELLED" description="Order has been cancelled already." />
+			</when>
+			<otherwise>
+				<try doc:name="Try" doc:id="590b0a92-805d-40d6-9035-7b6a4b52b385">
+			<http:request method="PUT" doc:name="Update the OrderDetails in sfdc" doc:id="6dd5dfb3-431d-43f5-bedc-8687cb8f3afd" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="orderDetails">
+			<http:body><![CDATA[#[output application/json
+---
+{
+	"status" : "Delivered"
+}]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"client_secret" : p('secure::sfdc.client_secret'),
+	"client_id" : p('secure::sfdc.client_id')
+}]]]></http:headers>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	orderId : vars.VorderId.orderId
+}]]]></http:query-params>
+		</http:request>
+			<error-handler>
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="1bcd4199-50e5-4fbe-bb30-52d5b8557c67">
+					<ee:transform doc:name="error respose" doc:id="d3770e16-dd12-4aab-88f2-66f2826a408c">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+								<ee:variables >
+									<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+								</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="cba9d9a4-41d2-4b24-948d-443c51b7d808" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : "Order has been Delivered"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="32fca611-008e-4bc0-a972-82bc376bc4ba" type="ERR:ALREADY_DELIVERED">
+				<ee:transform doc:name="Transform Message" doc:id="f6c48c9a-2cf9-41e9-8122-6a6317d8f6de" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : error.description, 
+	"errorType" : error.errorType.identifier
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="2b082094-22d2-4912-bc1d-3901dfec8256" type="ERR:ALREADY_CANCELLED" >
+				<ee:transform doc:name="Transform Message" doc:id="92c9c22e-7553-4ec6-96ba-a9e87deffcb9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : error.description, 
+	"errorType" : error.errorType.identifier
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

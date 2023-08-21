@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<error-handler name="errorError_Handler" doc:id="acdf4e15-0812-4820-a9ef-1404d7f3d738" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="11c44fbe-865d-4a5a-b674-c14b4305fa40" type="ERR:PRODUCT_NOT_FOUND,ERR:EMAILID_OR_CUSTOMERID_NOT_FOUND">
+			<ee:transform doc:name="Transform Message" doc:id="dc9d4450-ad7a-4003-b865-5a1afd401c0d" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Bad Request "++ error.description as String,
+	"errorType": error.errorType.identifier
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d8223b9c-f927-4e27-9748-d4a3ff89c386" type="ERR:PAYMENT_FAILED">
+			<ee:transform doc:name="Transform Message" doc:id="d570d3ce-7a6b-486b-9318-1aa9d7f2dda6" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Bad Request "++ error.description as String,
+	"errorType": error.errorType.identifier
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="httpStatus" ><![CDATA[402]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="81d79eba-7af4-4eeb-84ca-4177b29ef11c" type="ERR:FEEDBACK_ALREADY_EXIST">
+			<ee:transform doc:name="Transform Message" doc:id="688043ed-6329-46a0-a035-f123dd8353e6" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Bad Request "++ error.description as String,
+	"errorType": error.errorType.identifier
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</on-error-propagate>
+	</error-handler>
+</mule>

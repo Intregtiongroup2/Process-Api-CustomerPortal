@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="pro-track_complaintFlow" doc:id="847415ef-1256-40dd-b4c8-9913f6189074" >
+		<http:request method="GET" doc:name="fetch complaint details" doc:id="53939c0c-fef4-4eef-91a1-dc725ef83e1c" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="complaint">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret":p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"complaintId" : attributes.queryParams.complaintId
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="show complaint details" doc:id="01101656-6491-482c-a2a2-acbd226b9d8c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "complaintId": payload.complaintId,
+    "date_of_complaint": payload.date_of_complaint,
+    "orderId": payload.orderId,
+    "customerId": payload.customerId,
+    "productTitle": payload.productTitle,
+    "quantity": payload.quantity,
+    "complaint_category": payload.complaint_category,
+    "description": payload.description,
+    "status": payload.status,
+    "action": payload.action
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Success" doc:id="7633ab7d-9b60-427d-a043-e77b8a9b031c" message="Complaint details successfully fetched"/>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="d5f3551c-3cbd-4c1f-b3d0-ac3cf358bd2a" >
+				<logger level="INFO" doc:name="Complaint Id not found" doc:id="dc97ad98-11e5-44c6-9dc3-3bd0b46f3b40" message="Complaint Id not found"/>
+				<ee:transform doc:name="Error Message" doc:id="f8e50eef-5900-4415-9a60-3b093709bfc0" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+</mule>

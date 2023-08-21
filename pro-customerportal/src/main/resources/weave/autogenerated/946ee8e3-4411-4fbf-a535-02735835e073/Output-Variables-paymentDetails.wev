@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_946ee8e3_4411_4fbf_a535_02735835e073_Output_Variables_paymentDetails = Any
+

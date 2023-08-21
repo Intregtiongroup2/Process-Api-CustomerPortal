@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="modifyCartFlow" doc:id="843013a0-e349-4232-9ad5-d5196bc0e0be">
+		<set-variable value='#[payload]' doc:name="updateDetails" doc:id="17a69003-d261-43b3-b3e6-0e58e98caf96" variableName="updateDetails" />
+		<try doc:name="Try" doc:id="7b85c0bc-3030-4439-a187-2046ee00526d">
+			<http:request method="GET" doc:name="Fetch cart Details" doc:id="50186391-d416-4f89-9195-266a3fbd3125" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="cart" target="cartDetails">
+				<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+				<http:query-params><![CDATA[#[output application/java
+---
+{
+	(emailId: payload.email) if(!isEmpty(payload.email)==true),
+	(customerId: payload.customerId) if(!isEmpty(payload.customerId)==true)
+}]]]></http:query-params>
+			</http:request>
+			<error-handler>
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="cd6a1e9d-caf2-4a82-ac2a-9ba027c9fc28" >
+					<ee:transform doc:name="Error Message" doc:id="9f8ea3e9-c9c9-4235-8e66-a0ed4b16e2b0">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="httpStatus"><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<choice doc:name="check itemNo present?" doc:id="2fed1a79-28e4-446d-9ef7-95dda7785b8e">
+			<when expression="#[output application/java&#10;---&#10;(vars.cartDetails.Items pluck ($$)) contains  (vars.updateDetails.itemNo as Key)]">
+				<ee:transform doc:name="Find the item No from existing cart" doc:id="f0e1eb0a-86fa-4615-b37f-1dffcb973807">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.cartDetails.Items filterObject (($$) ~= vars.updateDetails.itemNo)]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+						<flow-ref doc:name="updateDataInCart" doc:id="87c1dc96-6f2f-4da9-ab79-26a0e0935ffb" name="updateDataInCart" />
+			</when>
+			<otherwise>
+				<ee:transform doc:name="itemNo not found" doc:id="45815f85-9f7a-4149-baf0-a3d50620550f">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : "itemNo does not exists"
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="updateDataInCart" doc:id="803add2b-41c5-4219-aa78-b8a242eff0af">
+		<ee:transform doc:name="Transform Message" doc:id="cdbff6d2-4491-40ae-b722-daac94368919">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload mapObject ((value, key, index) -> value)]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="ef6ae97a-f39a-426a-86de-cbe5825dc47d" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="cartProductQuantity" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.Quantity]]></ee:set-variable>
+				<ee:set-variable variableName="productTitle" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.Product_Title]]></ee:set-variable>
+				<ee:set-variable variableName="warehouse_location" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.Shipping_Warehouse_Location]]></ee:set-variable>
+				<ee:set-variable variableName="total_price" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.Total_Price]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<http:request method="GET" doc:name="Fetch the avaiable Product Quantiy" doc:id="a6caa335-6f4d-48ed-a853-b5671da9cbb8" config-ref="HTTP_Request_configuration_sys_cp_loc" path="products/{location}" target="warehouseQuantity" targetValue="#[payload.quantity]">
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	client_secret : p('secure::loc.client_secret'),
+	client_id : p('secure::loc.client_id')
+}]]]></http:headers>
+					<http:uri-params><![CDATA[#[output application/java
+---
+{
+	location: vars.warehouse_location
+}]]]></http:uri-params>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle: vars.productTitle
+}]]]></http:query-params>
+				</http:request>
+		<choice doc:name="checking for increase, decrease or to remove the product quantity" doc:id="9a436759-377c-4265-ab88-34e97ecbe3a7">
+			<when expression="#[vars.updateDetails.quantity == 0]">
+				<ee:transform doc:name="Transforming the existing Items and Total_Amount" doc:id="6ff219d8-fd99-43b9-a3c2-86146be3c278">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Items : vars.cartDetails.Items filterObject ((value, key) -> (key != vars.updateDetails.itemNo as Key)),
+	Total_Amount: ((vars.cartDetails.Total_Amount default 0) - vars.total_price)	
+}
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<try doc:name="Try" doc:id="701541f6-03f4-4d3f-9228-f321dcd1accc" >
+					<http:request method="PUT" doc:name="Remove items from the existing cart" doc:id="81483c68-df45-43d4-bfc4-2c1b14003abb" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="cart" >
+						<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+						<http:query-params ><![CDATA[#[output application/java
+---
+{
+	(emailId: vars.updateDetails.email) if(!isEmpty(vars.updateDetails.email)==true),
+	(customerId: vars.updateDetails.customerId) if(!isEmpty(vars.updateDetails.customerId)==true)
+}]]]></http:query-params>
+					</http:request>
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="70fbd2bc-f26c-427f-871f-6fd90f443788" >
+							<ee:transform doc:name="Error Message" doc:id="b1d1bf9c-d70a-40c7-826c-81b6a12c5d1d" >
+								<ee:message >
+									<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+								</ee:message>
+								<ee:variables >
+									<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+								</ee:variables>
+							</ee:transform>
+						</on-error-propagate>
+					</error-handler>
+				</try>
+				<set-variable value='#[output application/json&#10;---&#10;{&#10;    "quantity": (vars.warehouseQuantity + vars.cartProductQuantity)&#10;}]' doc:name="finalQuantity" doc:id="f69e174d-bfec-4b13-97e3-4462e85804e0" variableName="finalQuantity" />
+				<flow-ref doc:name="increasing quantity In Products Table" doc:id="4296fdb2-361d-4a97-8cf2-615fb0aa82c0" name="updating-product-quantity" />
+				<ee:transform doc:name="Successfully Modified" doc:id="0ae4d9c1-f48f-4bd1-b6cd-a4a00613464a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Cart Successfully Modified."
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<when expression="#[vars.updateDetails.quantity &gt; payload.Quantity]">
+				<choice doc:name="checking the quantity available in warehouse from where previousely products are taken" doc:id="705b92e8-d70f-46ac-81e4-0d9e3cec44fe">
+					<when expression="#[(vars.updateDetails.quantity - vars.cartProductQuantity)&gt; vars.warehouseQuantity]">
+						<choice doc:name="Checking email is given?" doc:id="516b3bde-8859-4c34-8af6-5ed87afd5cba">
+							<when expression="#[!isEmpty(vars.updateDetails.email)==true]">
+								<ee:transform doc:name="Transform Message to call product availability flow" doc:id="17d1a5bb-8f65-4b9c-b9ad-13e9a2220b08">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	productTitle: vars.productTitle,
+	quantity: vars.updateDetails.quantity
+}]]></ee:set-payload>
+							</ee:message>
+							<ee:variables>
+								<ee:set-variable variableName="purchaseDetails"><![CDATA[%dw 2.0
+output application/json
+---
+{
+	location: vars.cartDetails.Nearest_Db_Location,
+	email: vars.updateDetails.email
+}
+]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+							</when>
+							<otherwise >
+								<http:request method="GET" doc:name="Fetch customer email incase of enquiry" doc:id="5c15c798-0835-4c0f-85d1-e7aa70c554d6" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="customers">
+									<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+									<http:query-params><![CDATA[#[output application/java
+---
+{
+	customerId: vars.updateDetails.customerId
+}]]]></http:query-params>
+								</http:request>
+								<ee:transform doc:name="Transform Message to call product availability flow" doc:id="e7e54ea4-9991-49f6-add7-1e70df9445cf" >
+									<ee:message >
+										<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	productTitle: vars.productTitle,
+	quantity: vars.updateDetails.quantity
+}]]></ee:set-payload>
+									</ee:message>
+									<ee:variables >
+										<ee:set-variable variableName="purchaseDetails" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	location: vars.cartDetails.Nearest_Db_Location,
+	email: payload.emailId
+}
+]]></ee:set-variable>
+									</ee:variables>
+								</ee:transform>
+							</otherwise>
+						</choice>
+						<flow-ref doc:name="Checking Product Quantity available  in other warehouse or not?" doc:id="35ccdd0a-2e7e-4d52-a101-7c8a61a709f3" name="product-availability-check"/>
+						<choice doc:name="cheking the quantity available in any warehouse?" doc:id="b13f80c5-c3fd-43e1-9e93-a607b0fb765e">
+							<when expression="#[isEmpty(payload.message) == true]">
+								<ee:transform doc:name="Response of Product availability flow" doc:id="ea36e628-4e83-4b4a-80c4-b5f0e397aad3">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+							</ee:message>
+									<ee:variables >
+										<ee:set-variable variableName="updatedTotal_Price" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.Total_Price]]></ee:set-variable>
+									</ee:variables>
+						</ee:transform>
+								<set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;(vars.cartDetails.Items default {}) mapObject ((value, key, index) -&gt; (&#10;	&#10;  if ((key) ~= vars.updateDetails.itemNo)&#10;    (&#10;      (key): payload&#10;    )&#10;  else (&#10;      (key) : value&#10;  )&#10;))]" doc:name="modifiedItems" doc:id="7e489b23-53f3-40f1-b127-afba23648340" variableName="modifiedItems" />
+								<ee:transform doc:name="Transforming the existing Items and Total_Amount" doc:id="43346555-2b5f-48b8-8f5b-1851687e76ce">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Items : vars.modifiedItems,
+	Total_Amount: ((vars.cartDetails.Total_Amount default 0) - vars.total_price + vars.updatedTotal_Price)
+}
+]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+								<try doc:name="Try" doc:id="12234cb9-329d-44d7-b6f6-b1cda01a542a">
+							<http:request method="PUT" doc:name="Remove items from the existing cart" doc:id="a03f8fca-a0b7-41b7-bf22-94f0b85044be" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="cart">
+								<http:headers><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+								<http:query-params><![CDATA[#[output application/java
+---
+{
+	(emailId: vars.updateDetails.email) if(!isEmpty(vars.updateDetails.email)==true),
+	(customerId: vars.updateDetails.customerId) if(!isEmpty(vars.updateDetails.customerId)==true)
+}]]]></http:query-params>
+							</http:request>
+							<error-handler>
+								<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="6fcdafe6-7934-4234-97b0-773177baedc3">
+									<ee:transform doc:name="Error Message" doc:id="5fd8508e-ce41-4595-8e7f-7248ec326634">
+										<ee:message>
+											<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+										</ee:message>
+										<ee:variables>
+											<ee:set-variable variableName="httpStatus"><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+										</ee:variables>
+									</ee:transform>
+								</on-error-propagate>
+							</error-handler>
+						</try>
+								<set-variable value='#[output application/json&#10;---&#10;{&#10;    "quantity": (vars.warehouseQuantity + vars.cartProductQuantity)&#10;}]' doc:name="finalQuantity" doc:id="51adcd7a-ebbe-4d63-9d66-ccff05128b1c" variableName="finalQuantity" />
+								<flow-ref doc:name="increasing quantity In Products Table in previous warehouse" doc:id="a1477e5d-895d-4fff-92ec-0b8dacba82df" name="updating-product-quantity" />
+								<ee:transform doc:name="Successfully Modified" doc:id="dd87eff6-b90a-457d-a355-3a782527356e" >
+									<ee:message >
+										<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Cart Successfully Modified."
+}]]></ee:set-payload>
+									</ee:message>
+								</ee:transform>
+							</when>
+							<otherwise >
+								<ee:transform doc:name="Quantity not available" doc:id="1fe3fe3f-a632-4eca-af6c-8e3f93f2d741" >
+									<ee:message >
+										<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"message": "Your Request quantity: " ++ vars.updateDetails.quantity as String ++ " for product " ++ vars.productTitle ++ "is currently unavailable, we will notify when it will be available."
+}]]></ee:set-payload>
+									</ee:message>
+								</ee:transform>
+							</otherwise>
+						</choice>
+					</when>
+					<otherwise >
+						<flow-ref doc:name="increasing quantity in Cart Table" doc:id="0da6d85e-feb6-49a1-a7b8-a8fe34de6546" name="updataing-Items-in-cart" />
+						<set-variable value='#[output application/json&#10;---&#10;{&#10;    "quantity": (vars.warehouseQuantity -  (vars.updateDetails.quantity - vars.cartProductQuantity))&#10;}]' doc:name="finalQuantity" doc:id="da8862ad-591b-4b59-a3b7-0634ab02b3f7" variableName="finalQuantity" />
+						<flow-ref doc:name="decreasing quantity In Products Table" doc:id="48b7ac93-2024-4368-950c-539edba9511f" name="updating-product-quantity" />
+						<ee:transform doc:name="Successfully Modified" doc:id="99946402-bcc6-4d4e-a59b-8ea716dd36ab" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Cart Successfully Modified."
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<when expression="#[(vars.updateDetails.quantity &lt; payload.Quantity) and (vars.updateDetails.quantity &gt;= 1 )]">
+				<flow-ref doc:name="decreasing quantity in Cart table" doc:id="6359dafc-38d6-43c8-a443-24827b613915" name="updataing-Items-in-cart" />
+				<set-variable value='#[output application/json&#10;---&#10;{&#10;    "quantity": (vars.warehouseQuantity +  (vars.cartProductQuantity - vars.updateDetails.quantity))&#10;}]' doc:name="finalQuantity" doc:id="8d12749b-41dc-4f5b-a3d4-1497a5199251" variableName="finalQuantity"/>
+				<flow-ref doc:name="increasing quantity In Products Table" doc:id="6fef7391-ddbc-47f8-8b48-623ce40e78a9" name="updating-product-quantity" />
+				<ee:transform doc:name="Successfully Modified" doc:id="63dbd3a1-43f2-4efe-8c73-9356cb00179c" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Cart Successfully Modified."
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="NO Modification" doc:id="d0f668fc-b725-4ac7-9817-17582f618c7b">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Message" : "Does not modified "
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Response" doc:id="6d2185fe-b45a-4be7-b4f7-79934731ee88">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+	</flow>
+	<flow name="updating-product-quantity" doc:id="2116e249-321d-424a-98c3-f521fe9931ff" >
+		<http:request method="PUT" doc:name="Update Product  Quantity In local" doc:id="824b624e-7ed5-441a-906d-85edede7dc4e" config-ref="HTTP_Request_configuration_sys_cp_loc" path="products/{location}">
+					<http:body><![CDATA[#[vars.finalQuantity]]]></http:body>
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	client_secret : p('secure::loc.client_secret'),
+	client_id : p('secure::loc.client_id')
+}]]]></http:headers>
+					<http:uri-params><![CDATA[#[output application/json
+---
+{
+	location: vars.warehouse_location
+}]]]></http:uri-params>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle: vars.productTitle
+}]]]></http:query-params>
+				</http:request>
+		<http:request method="PUT" doc:name="Update Product  Quantity In SFDC" doc:id="c4847112-89f7-470b-81e5-42180fe0ea78" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="products">
+					<http:body><![CDATA[#[vars.finalQuantity]]]></http:body>
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	client_secret : p('secure::sfdc.client_secret'),
+	client_id : p('secure::sfdc.client_id')
+}]]]></http:headers>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	productTitle: vars.productTitle,
+	location: vars.warehouse_location
+}]]]></http:query-params>
+				</http:request>
+	</flow>
+	<flow name="updataing-Items-in-cart" doc:id="af307be6-bd3a-4eb7-929f-fd9148e9e8db" >
+		<ee:transform doc:name="modified product Quantity, Price and Add to cart Date" doc:id="4384a883-94a2-446f-803b-1a33fc384a01">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "Product_Title": payload.Product_Title,
+  "Warranty": payload.Warranty, 
+  "Quantity": vars.updateDetails.quantity,
+  "Price": payload.Price,
+  "Delivery_Charge": payload.Delivery_Charge,
+  "Total_Price": (payload.Price * (vars.updateDetails.quantity as Number)) + payload.Delivery_Charge ,
+  "Shipping_Warehouse_Location": payload.Shipping_Warehouse_Location,
+  "Add_to_cart_Date": now() as String {format: "y-MM-dd"},
+  "Expected_Delivery": payload.Expected_Delivery,
+  "Nearest_Db_Location": payload.Nearest_Db_Location
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="updatedTotal_Price"><![CDATA[ output application/json
+ ---
+ (payload.Price * (vars.updateDetails.quantity as Number)) + payload.Delivery_Charge]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+		<set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;(vars.cartDetails.Items default {}) mapObject ((value, key, index) -&gt; (&#10;	&#10;  if ((key) ~= vars.updateDetails.itemNo)&#10;    (&#10;      (key): payload&#10;    )&#10;  else (&#10;      (key) : value&#10;  )&#10;))]" doc:name="modifiedItems" doc:id="2f2afe89-5228-43d3-bc65-ff7135d9e6e2" variableName="modifiedItems" />
+		<ee:transform doc:name="Transforming the existing Items and Total_Amount" doc:id="baad982c-3b8a-486b-a0ec-11986e80c041" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Items : vars.modifiedItems,
+	Total_Amount: ((vars.cartDetails.Total_Amount default 0) - vars.total_price + vars.updatedTotal_Price)
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<try doc:name="Try" doc:id="e0f4a917-2e78-4d18-bb98-1ebce2a4efed" >
+			<http:request method="PUT" doc:name="Remove items from the existing cart" doc:id="2e16a236-8a03-4250-a2d0-fce2641492de" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="cart" >
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_id : p('secure::sfdc.client_id'),
+	client_secret : p('secure::sfdc.client_secret')
+	
+}]]]></http:headers>
+				<http:query-params ><![CDATA[#[output application/java
+---
+{
+	(emailId: vars.updateDetails.email) if(!isEmpty(vars.updateDetails.email)==true),
+	(customerId: vars.updateDetails.customerId) if(!isEmpty(vars.updateDetails.customerId)==true)
+}]]]></http:query-params>
+			</http:request>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="34917a72-c5da-4a92-a7a5-bcc279ed0088" >
+					<ee:transform doc:name="Error Message" doc:id="56a9929b-8cf5-4bf5-911a-93d85994cadd" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+	</flow>
+</mule>

@@ -1,0 +1,30 @@
+{
+  "headers": {
+    "client_id": "6594903a87af44d980d2421f5c3a24d8",
+    "client_secret": "6a39DAdba8514e1D9b48B75Da1D55Ae2",
+    "content-type": "application/json",
+    "user-agent": "PostmanRuntime/7.32.3",
+    "accept": "*/*",
+    "postman-token": "ad2aa4a9-e6e0-405e-be22-41a2052199a6",
+    "host": "localhost:8082",
+    "accept-encoding": "gzip, deflate, br",
+    "connection": "keep-alive",
+    "content-length": "521"
+  },
+  "clientCertificate": null,
+  "method": "POST",
+  "scheme": "https",
+  "queryParams": {},
+  "requestUri": "/api/pro-payment",
+  "queryString": "",
+  "version": "HTTP/1.1",
+  "maskedRequestPath": "/pro-payment",
+  "listenerPath": "/api/*",
+  "relativePath": "/api/pro-payment",
+  "localAddress": "/127.0.0.1:8082",
+  "uriParams": {},
+  "rawRequestUri": "/api/pro-payment",
+  "rawRequestPath": "/api/pro-payment",
+  "remoteAddress": "/127.0.0.1:50206",
+  "requestPath": "/api/pro-payment"
+}

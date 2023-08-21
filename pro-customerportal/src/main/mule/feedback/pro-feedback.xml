@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="pro-feedbackFlow" doc:id="ec4699a9-6ba7-4b4f-a644-b8eaa96cbcdd" >
+		<ee:transform doc:name="Incoming Request" doc:id="e29fbd7e-32c8-418b-b6e1-f5adbc1007dd" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="orderId" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.orderId]]></ee:set-variable>
+				<ee:set-variable variableName="customerId" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.customerId]]></ee:set-variable>
+				<ee:set-variable variableName="feedback" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.feedback]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<try doc:name="Try" doc:id="940287e5-66e9-4f78-9de9-afac4a293804" >
+			<http:request method="GET" doc:name="Get the orderDetails" doc:id="1b25d5d8-8d65-471c-866e-3da2a50e7ce2" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="orderDetails">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	orderId : vars.orderId
+}]]]></http:query-params>
+		</http:request>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="639ad06c-6ac7-4c7c-ba05-542ee9e827e4" >
+					<ee:transform doc:name="Error Message" doc:id="cde5838e-4cc3-4487-ae42-9d771599f8cb" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Bad Request OrderId not found"
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<choice doc:name="Choice" doc:id="985994e3-64e5-4e6e-9975-362d3e075daa" >
+			<when expression='#[(payload.Items..Product_Title contains vars.feedback.productTitle) and payload.Status == "Delivered"]'>
+				<ee:transform doc:name="OrderDetails" doc:id="75d314c0-da49-493e-ae86-d48b3b017348" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<raise-error doc:name="ERR:PRODUCT_NOT_FOUND" doc:id="281a85a3-1608-40fd-bb6c-696f642f7826" type="ERR:PRODUCT_NOT_FOUND" description="ProductTitle provided is not valid or Product is not delivered"/>
+			</otherwise>
+		</choice>
+		<choice doc:name="Choice" doc:id="642bc8a8-5a27-42a9-a38f-69075a6521bc" >
+			<when expression='#[payload.Feedback..productTitle contains vars.feedback.productTitle]'>
+				<raise-error doc:name="ERR:FEEDBACK_ALREADY_EXIST" doc:id="72298e8c-aad2-46a0-8808-96927872746d" type="ERR:FEEDBACK_ALREADY_EXIST" description="The feedback already exists for mentioned productTitle" />
+			</when>
+			<otherwise>
+				<ee:transform doc:name="New feeback to be added" doc:id="fe175268-e14a-4cd1-a75b-10c99db20e69">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	feedback:vars.feedback
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<http:request method="PUT" doc:name="Add the feedback in orderDetails" doc:id="11bb1d84-1fd6-4ade-87c7-58f90792c832" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="orderDetails" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"client_id": p('secure::sfdc.client_id'),
+	"client_secret": p('secure::sfdc.client_secret')
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	orderId : vars.orderId
+}]]]></http:query-params>
+		</http:request>
+	</flow>
+</mule>

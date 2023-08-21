@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<sub-flow name="FetchProductDetailsFromSalesforce" doc:id="346fbbba-0240-4685-a07c-330767c2868c">
+		<try doc:name="Try" doc:id="b31bc30a-1965-49e5-a331-2d6c1fe4e02d" >
+			<http:request method="GET" doc:name="Fetch Product Details" doc:id="3c61fa6f-099a-4143-af9e-281cb3c8d73d" config-ref="HTTP_Request_configuration_sys_cp_sfdc" path="products">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	client_secret : p('secure::sfdc.client_secret'),
+	client_id : p('secure::sfdc.client_id')
+}]]]></http:headers>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	(productTitle : attributes.queryParams.productTitle) if (!isEmpty(attributes.queryParams.productTitle)== true)
+}]]]></http:query-params>
+		</http:request>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f32a8afc-ed71-4536-a903-6a3d3f046128" >
+					<ee:transform doc:name="Error Message" doc:id="8fdb53b3-3ecc-4e96-b41c-df51f2892f28">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+error.muleMessage.payload]]></ee:set-payload>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="httpStatus"><![CDATA[error.muleMessage.typedAttributes.statusCode]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<logger level="ERROR" doc:name="Logging Error Message" doc:id="9ccc8436-54e8-4c18-9655-6cb9e2a85fed" message="#[payload]"/>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<flow name="getProductDetialsFlow" doc:id="267efa55-9e4f-483f-9c72-4e30282e2942" >
+		<choice doc:name="Choice" doc:id="35216a95-e186-4a4f-9805-78e592e6900a">
+			<when expression="#[isEmpty(attributes.queryParams.productTitle)== true]">
+				<flow-ref doc:name="FetchProductDetailsFromSalesforce" doc:id="0503b006-0f27-4512-901d-d91f3406d7f5" name="FetchProductDetailsFromSalesforce" />
+				<ee:transform doc:name="All Unique Products Detials Respons" doc:id="c0870c82-1793-43fc-84d9-4fdd1651810f" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<flow-ref doc:name="FetchProductDetailsFromSalesforce" doc:id="63f83f1f-50e9-42d7-820b-f054c70bd8f1" name="FetchProductDetailsFromSalesforce"/>
+				<ee:transform doc:name="Specific Product Detials Response" doc:id="a1acae0e-ccf1-4ca7-a312-8d744e9f75ce" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Product_Title" : upper(payload[0].productTitle),
+	"Brand_Name": payload[0].brandName,
+	"Series_Name": payload[0].seriesName,
+	"RAM": upper(payload[0].ram),
+	"ROM": upper(payload[0].rom),
+	"Warranty": payload[0].warranty,
+	"Price": payload[0].price as Number
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
